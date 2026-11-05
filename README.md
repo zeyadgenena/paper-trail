@@ -16,7 +16,7 @@ Paper Trail never decides what is true. It shows where the copy and its sources 
 
 ## Run it
 
-Open `index.html` in a browser. There is nothing to install and no server. Everything stays in the browser tab, and nothing you paste is uploaded.
+Open `index.html` in a browser. There is nothing to install and no server. Everything you paste stays in the browser tab; the page loads only its fonts from Google Fonts.
 
 Links that open straight into a state:
 

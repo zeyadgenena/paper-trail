@@ -18,9 +18,15 @@ function render(focus) {
   if (el) {
     el.focus({ preventScroll: true });
     const r = el.getBoundingClientRect();
-    if (r.top < 70 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'start' });
+    if (r.top < 120 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'center' });
   }
   if (focus === 'step') window.scrollTo(0, 0);
+  // Keep the selected sentence in view inside the proof.
+  const on = $('.proof-sheet .sent.on');
+  if (on && focus === 'claim') {
+    const box = $('.proof-sheet').getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (r.top < box.top + 40 || r.bottom > box.bottom - 20) on.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 function sourcesSig() { return JSON.stringify(S.sources.map(s => s.text)); }
@@ -28,7 +34,7 @@ function stale() { return S.draft !== S.analyzedDraft || sourcesSig() !== S.sour
 
 async function runAnalyze() {
   if (S.claims.some(c => c.status !== 'unreviewed')) {
-    const ok = await ask('Find claims again?', 'Decisions stay on sentences you haven’t changed. Sentences you edited in the draft start over.', 'Find claims');
+    const ok = await ask('Find the claims again?', 'Decisions stay on sentences you haven’t changed. Sentences you edited in the draft start over.', 'Find claims');
     if (!ok) return;
   }
   const srcChanged = sourcesSig() !== S.sourcesSig;
@@ -37,7 +43,7 @@ async function runAnalyze() {
   S.practice = S.draft === DEMO.draft;
   S.step = 'review';
   ui.claim = Math.max(0, S.claims.findIndex(c => c.status === 'unreviewed'));
-  ui.mode = null; ui.picker = false; ui.filter = 'all';
+  ui.mode = null; ui.picker = false; ui.whole = false;
   save(); render('step');
   say(S.claims.length + (S.claims.length === 1 ? ' claim' : ' claims') + ' found.');
 }
@@ -45,14 +51,29 @@ async function runAnalyze() {
 async function go(step) {
   if (step === S.step) return;
   if (step !== 'setup' && S.step === 'setup' && S.claims.length && stale()) return runAnalyze();
+  if (step === 'export' && S.claims.every(c => c.status !== 'unreviewed')) ui.thunk = true;
   S.step = step; ui.mode = null; ui.picker = false;
   save(); render('step');
 }
 
 async function confirmReplace() {
   const busy = S.claims.some(c => c.status !== 'unreviewed') || (S.draft.trim() && S.draft !== DEMO.draft);
-  return !busy || ask('Replace your current review?', 'Loading the practice story replaces what is on screen. Save a review file first if you want to keep it.', 'Replace');
+  return !busy || ask('Replace your current review?', 'The practice story replaces what is on screen. Save a review file first if you want to keep it.', 'Replace');
 }
+
+/* Point at a query and the words it means light up in the draft and the source, and the other way round. */
+function light(id, on) {
+  if (id == null) return;
+  document.querySelectorAll(`.detail [data-f="${id}"], .sent.on mark[data-f="${id}"]`).forEach(el => el.classList.toggle('lit', on));
+}
+['mouseover', 'focusin'].forEach(ev => document.addEventListener(ev, e => {
+  const t = e.target.closest && e.target.closest('.detail [data-f], .sent.on mark[data-f]');
+  if (t) light(t.dataset.f, true);
+}));
+['mouseout', 'focusout'].forEach(ev => document.addEventListener(ev, e => {
+  const t = e.target.closest && e.target.closest('.detail [data-f], .sent.on mark[data-f]');
+  if (t) light(t.dataset.f, false);
+}));
 
 document.addEventListener('click', async e => {
   const t = e.target;
@@ -61,9 +82,7 @@ document.addEventListener('click', async e => {
   const goBtn = t.closest('[data-step-go]');
   if (goBtn) { go(goBtn.dataset.stepGo); return; }
   const claimBtn = t.closest('[data-claim]');
-  if (claimBtn) { ui.claim = +claimBtn.dataset.claim; ui.mode = null; ui.picker = false; render('claim'); return; }
-  const filterBtn = t.closest('[data-filter]');
-  if (filterBtn) { ui.filter = filterBtn.dataset.filter; render(); return; }
+  if (claimBtn && $('#main').contains(claimBtn)) { select(+claimBtn.dataset.claim); return; }
   const tabBtn = t.closest('[data-tab]');
   if (tabBtn) { ui.exportTab = tabBtn.dataset.tab; render(); return; }
   const a = t.closest('[data-act]');
@@ -71,11 +90,16 @@ document.addEventListener('click', async e => {
   const act = a.dataset.act;
   switch (act) {
     case 'demo': case 'demo-done':
-      if (await confirmReplace()) { loadDemo(act === 'demo-done'); render('step'); say(act === 'demo' ? 'Practice story loaded. 8 claims to check.' : 'Finished practice review loaded.'); }
+      if (await confirmReplace()) {
+        loadDemo(act === 'demo-done');
+        if (act === 'demo-done') ui.thunk = true;
+        render('step'); say(act === 'demo' ? 'Practice story open. Eight claims to check.' : 'A finished review of the practice story.');
+      }
       return;
     case 'fresh':
-      if (!S.claims.some(c => c.status !== 'unreviewed') || await ask('Start with your own copy?', 'This clears the practice story and its decisions.', 'Start')) {
-        S = blank(); IDX = null; ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false }; save(); render('step');
+      if (await ask('Clear everything and start over?', 'This removes the draft, the sources and every decision. Save a review file first if you want to keep it.', 'Clear')) {
+        S = blank(); IDX = null; ui = { claim: 0, mode: null, exportTab: 'clean', picker: false, whole: false, omitOpen: false, pop: -1, thunk: false };
+        save(); render('step');
       }
       return;
     case 'add-src':
@@ -90,7 +114,7 @@ document.addEventListener('click', async e => {
     }
     case 'analyze': return runAnalyze();
   }
-  if (S.step === 'review') return reviewAction(act, a);
+  if (S.step === 'review') return reviewAction(act);
   if (S.step === 'export') return exportAction(act);
 });
 
@@ -98,7 +122,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'reviewer') { try { localStorage.setItem(NAME_KEY, t.value); } catch (x) { /* name just isn't remembered */ } return; }
   if (t.id === 'note' && S.claims[ui.claim]) { S.claims[ui.claim].note = t.value; save(); return; }
-  if (t.id === 'fixText') { $('#fixCheck').textContent = recheckText(t.value, S.claims[ui.claim]); return; }
+  if (t.id === 'fixText') { $('#fixCheck').outerHTML = recheckLine(t.value, S.claims[ui.claim]); return; }
   if (t.id === 'pickSearch') {
     const q = t.value.trim().toLowerCase();
     document.querySelectorAll('#pickList li').forEach(li => { li.hidden = !!q && !li.dataset.text.includes(q); });
@@ -125,7 +149,10 @@ document.addEventListener('change', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (S.step !== 'review' || e.metaKey || e.ctrlKey || e.altKey || !$('#modal').hidden) return;
+  if (!$('#modal').hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+  const sent = e.target.closest && e.target.closest('.sent[data-claim]');
+  if (sent && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(+sent.dataset.claim); return; }
+  if (S.step !== 'review') return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
   const act = { s: 'supported', f: 'fix', c: 'open', n: 'notclaim', j: 'next', k: 'prev' }[e.key.toLowerCase()];
@@ -145,7 +172,7 @@ $('#openFile').addEventListener('click', () => $('#fileInput').click());
   const h = (location.hash || '').slice(1);
   const saved = load();
   if (h === 'practice') loadDemo(false);
-  else if (h === 'finished') loadDemo(true);
+  else if (h === 'finished') { loadDemo(true); ui.thunk = true; }
   else if (h === 'practice-setup') { loadDemo(false); S.step = 'setup'; }
   else if (saved && saved.v === 1 && Array.isArray(saved.claims) && Array.isArray(saved.sources)) S = saved;
   else loadDemo(false);

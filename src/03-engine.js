@@ -194,9 +194,13 @@ const PT = (() => {
     if (evidenceIds) { m.coverage = coverageOf(toks, idx, m.ids); m.weak = !m.ids.length || m.coverage < 0.35; }
     const ev = m.ids.map(id => idx.byId.get(id));
     const flags = [];
-    const claimMarks = [];                     // [start, end, cls]
+    let nextId = 0;
+    const newId = () => nextId++;
+    // Marks are [start, end, class, flagId]; a flag and every word it points at share one id.
+    const claimMarks = [];
     const evMarks = new Map(ev.map(s => [s.id, []]));
-    const markEv = (s, a, b, cls) => evMarks.get(s.id).push([s.toks[a].start, s.toks[b].end, cls]);
+    const markEv = (s, a, b, cls, f) => evMarks.get(s.id).push([s.toks[a].start, s.toks[b].end, cls, f]);
+    const flag = (f, id) => { f.id = id; flags.push(f); };
     const q = s => '“' + s + '”';
 
     const quotes = quoteRanges(text);
@@ -217,43 +221,47 @@ const PT = (() => {
     // Quotes must match a source word for word.
     quotes.forEach(r => {
       if (idx.allText.includes(norm(r.inner))) return;
+      const id = newId();
       const best = closestQuote(r.inner, idx);
-      claimMarks.push([r.start, r.end, 'm-strong']);
-      flags.push({ sev: 'strong', kind: 'quote', title: 'The quote doesn’t match the source word for word.',
-        why: best ? 'Closest quote in ' + best.title + ': ' + q(best.text) : 'No quote in the sources is close to it.' });
+      claimMarks.push([r.start, r.end, 'm-strong', id]);
+      if (best && evMarks.has(best.sentId)) evMarks.get(best.sentId).push([best.start, best.end, 'm-strong', id]);
+      flag({ sev: 'strong', kind: 'quote', title: 'The quote doesn’t match the source word for word.',
+        why: best ? 'Closest quote in ' + best.title + ': ' + q(best.text) : 'No quote in the sources is close to it.' }, id);
     });
 
     // Numbers.
     const pairedEvVals = new Set();
     toks.filter(t => t.isNum && !inQuote(t)).forEach(t => {
       if (evVals.has(t.val)) return;
+      const id = newId();
       const differs = !m.weak && ev.flatMap(s => s.toks).find(e => e.isNum && e.unit && e.unit === t.unit && !claimVals.has(e.val));
-      claimMarks.push([t.start, t.end, 'm-strong']);
+      claimMarks.push([t.start, t.end, 'm-strong', id]);
       if (differs) {
         pairedEvVals.add(differs.val);
         const s = ev.find(x => x.toks.includes(differs));
-        markEv(s, differs.i, Math.min(differs.i + 1, s.toks.length - 1), 'm-strong');
-        flags.push({ sev: 'strong', kind: 'number', title: 'The draft says ' + q(phraseAt(toks, t)) + '. The source says ' + q(phraseAt(s.toks, differs)) + '.',
-          why: 'A number changed between the source and the draft.' });
+        markEv(s, differs.i, Math.min(differs.i + 1, s.toks.length - 1), 'm-strong', id);
+        flag({ sev: 'strong', kind: 'number', title: 'The draft says ' + q(phraseAt(toks, t)) + '. The source says ' + q(phraseAt(s.toks, differs)) + '.',
+          why: 'A number changed between the source and the draft.' }, id);
         return;
       }
       const other = elsewhere(e => e.isNum && e.val === t.val);
-      flags.push(other
+      flag(other
         ? { sev: 'soft', kind: 'number', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + ': ' + q(other.text) + ' Add that passage if it supports the claim.' }
-        : { sev: 'strong', kind: 'number', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Find where this number comes from, or cut it.' });
+        : { sev: 'strong', kind: 'number', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Find where this number comes from, or cut it.' }, id);
     });
 
     // Names.
     toks.filter(t => t.name && !inQuote(t) && !evTerms.has(t.term)).forEach(t => {
+      const id = newId();
       const other = elsewhere(e => e.term === t.term);
-      claimMarks.push([t.start, t.end, other ? 'm-soft' : 'm-strong']);
-      flags.push(other
+      claimMarks.push([t.start, t.end, other ? 'm-soft' : 'm-strong', id]);
+      flag(other
         ? { sev: 'soft', kind: 'name', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + '. Add that passage if it supports the claim.' }
-        : { sev: 'strong', kind: 'name', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Check the name against a source before it runs.' });
+        : { sev: 'strong', kind: 'name', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Check the name against a source before it runs.' }, id);
     });
 
     if (m.weak) {
-      flags.unshift({ sev: 'strong', kind: 'weak', title: 'No source passage clearly supports this.',
+      flags.unshift({ id: newId(), sev: 'strong', kind: 'weak', title: 'No source passage clearly supports this.',
         why: ev.length ? 'The closest passage shares only a few words. Pick a passage by hand, add a source, or open a check.' : 'Add a source, pick a passage by hand, or open a check.' });
       return { evidence: m.ids, coverage: m.coverage, weak: true, flags, claimMarks, evMarks };
     }
@@ -268,15 +276,16 @@ const PT = (() => {
     findPhrases(toks, ABSOLUTE).forEach(h => {
       const t = toks[h.i];
       if (inQuote(t) || h.phrase.split(' ').every(w => evLower.has(w))) return;
-      claimMarks.push([toks[h.i].start, toks[h.j].end, 'm-strong']);
+      const id = newId();
+      claimMarks.push([toks[h.i].start, toks[h.j].end, 'm-strong', id]);
       const counter = [];
       ev.forEach(s => findPhrases(s.toks, RESTRICT).forEach(r => {
-        if (!claimLower.has(r.phrase)) { counter.push(r.phrase); markEv(s, r.i, r.j, 'm-soft'); }
+        if (!claimLower.has(r.phrase)) { counter.push(r.phrase); markEv(s, r.i, r.j, 'm-soft', id); }
       }));
-      extras.forEach(x => { counter.push(phraseAt(x.s.toks, x.e)); markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'); });
+      extras.forEach(x => { counter.push(phraseAt(x.s.toks, x.e)); markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft', id); });
       const uniq = [...new Set(counter)];
-      flags.push({ sev: 'strong', kind: 'absolute', title: 'The draft says ' + q(h.phrase) + '. The source doesn’t.',
-        why: (uniq.length ? 'The source says ' + uniq.map(q).join(', ') + '. ' : '') + 'Absolute words make a claim broader than its source.' });
+      flag({ sev: 'strong', kind: 'absolute', title: 'The draft says ' + q(h.phrase) + '. The source doesn’t.',
+        why: (uniq.length ? 'The source says ' + uniq.map(q).join(', ') + '. ' : '') + 'Absolute words make a claim broader than its source.' }, id);
     });
 
     // Limits on numbers the draft drops ("about 80", "up to $5,000").
@@ -286,20 +295,22 @@ const PT = (() => {
       const ct = toks.find(t => t.isNum && t.val === num.val);
       const before = toks.slice(Math.max(0, ct.i - 3), ct.i).map(t => t.lower).join(' ');
       if ((' ' + before + ' ').includes(' ' + h.phrase + ' ')) return;
-      markEv(s, h.i, h.j + 1, 'm-soft');
-      flags.push({ sev: 'soft', kind: 'approx', title: 'The source says ' + q(s.toks.slice(h.i, h.j + 2).map(t => t.raw).join(' ')) + '. The draft says ' + q(ct.raw) + '.',
-        why: h.phrase === 'up to' || h.phrase === 'as much as' || h.phrase === 'as many as' ? 'Dropping ' + q(h.phrase) + ' turns a maximum into a promise.' : 'Dropping ' + q(h.phrase) + ' turns an estimate or a limit into an exact figure.' });
+      const id = newId();
+      markEv(s, h.i, h.j + 1, 'm-soft', id);
+      claimMarks.push([ct.start, ct.end, 'm-soft', id]);
+      flag({ sev: 'soft', kind: 'approx', title: 'The source says ' + q(s.toks.slice(h.i, h.j + 2).map(t => t.raw).join(' ')) + '. The draft says ' + q(ct.raw) + '.',
+        why: h.phrase === 'up to' || h.phrase === 'as much as' || h.phrase === 'as many as' ? 'Dropping ' + q(h.phrase) + ' turns a maximum into a promise.' : 'Dropping ' + q(h.phrase) + ' turns an estimate or a limit into an exact figure.' }, id);
     }));
 
     // Hedges the draft drops.
     if (!toks.some(t => HEDGE_ANY.has(t.lower))) {
-      const seen = new Set();
+      const seen = new Set(), id = newId();
       ev.forEach(s => findPhrases(s.toks, HEDGE).forEach(h => {
         if (!near(s, h) || seen.has(h.phrase)) return;
-        seen.add(h.phrase); markEv(s, h.i, h.j, 'm-soft');
+        seen.add(h.phrase); markEv(s, h.i, h.j, 'm-soft', id);
       }));
-      if (seen.size) flags.push({ sev: 'soft', kind: 'hedge', title: 'The source is more careful: ' + [...seen].map(q).join(', ') + '.',
-        why: 'The draft states as certain what the source qualifies.' });
+      if (seen.size) flag({ sev: 'soft', kind: 'hedge', title: 'The source is more careful: ' + [...seen].map(q).join(', ') + '.',
+        why: 'The draft states as certain what the source qualifies.' }, id);
     }
 
     // Conditions the draft drops.
@@ -307,38 +318,60 @@ const PT = (() => {
       if (!near(s, h) || h.phrase.split(' ').every(w => claimLower.has(w))) return;
       let j = h.j;
       while (j + 1 < s.toks.length && j - h.i < 8 && !/[,;:.]/.test(s.text.slice(s.toks[j].end, s.toks[j + 1].start))) j++;
-      markEv(s, h.i, j, 'm-soft');
-      flags.push({ sev: 'soft', kind: 'condition', title: 'The source adds a condition: ' + q(s.text.slice(s.toks[h.i].start, s.toks[j].end)) + '.',
-        why: 'The draft leaves it out.' });
+      const id = newId();
+      markEv(s, h.i, j, 'm-soft', id);
+      flag({ sev: 'soft', kind: 'condition', title: 'The source adds a condition: ' + q(s.text.slice(s.toks[h.i].start, s.toks[j].end)) + '.',
+        why: 'The draft leaves it out.' }, id);
     }));
 
     // Attribution the draft drops.
     if (!findPhrases(toks, ATTRIB).length) {
       ev.forEach(s => findPhrases(s.toks, ATTRIB).forEach(h => {
         if (!near(s, h, 6)) return;
-        markEv(s, h.i, h.j, 'm-soft');
-        flags.push({ sev: 'soft', kind: 'attrib', title: 'The source attributes this: ' + q(h.phrase) + '.',
-          why: 'The draft states it as fact. Keep the attribution or confirm it independently.' });
+        const id = newId();
+        markEv(s, h.i, h.j, 'm-soft', id);
+        flag({ sev: 'soft', kind: 'attrib', title: 'The source attributes this: ' + q(h.phrase) + '.',
+          why: 'The draft states it as fact. Keep the attribution or confirm it independently.' }, id);
       }));
     }
 
     // Negation differs.
     const claimNeg = toks.some(t => t.neg && !inQuote(t));
     const evNeg = ev.some(s => s.toks.some(t => t.neg && !inEvQuote(s, t) && near(s, { i: t.i, j: t.i })));
-    if (claimNeg !== evNeg) flags.push({ sev: 'soft', kind: 'negation',
+    if (claimNeg !== evNeg) flag({ sev: 'soft', kind: 'negation',
       title: claimNeg ? 'The draft has a “not” or “no” the source doesn’t.' : 'The source has a “not” or “no” here. The draft doesn’t.',
-      why: 'Check that the meaning didn’t flip.' });
+      why: 'Check that the meaning didn’t flip.' }, newId());
 
     // Leftover detail, when no absolute flag already showed it.
     const closeExtras = extras.filter(x => x.close);
     if (closeExtras.length && !flags.some(f => f.kind === 'absolute')) {
-      closeExtras.forEach(x => markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'));
-      flags.push({ sev: 'soft', kind: 'detail', title: 'The source includes ' + [...new Set(closeExtras.map(x => q(phraseAt(x.s.toks, x.e))))].join(', ') + '. The draft leaves it out.',
-        why: 'Check the draft hasn’t simplified away something that matters.' });
+      const id = newId();
+      closeExtras.forEach(x => markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft', id));
+      flag({ sev: 'soft', kind: 'detail', title: 'The source includes ' + [...new Set(closeExtras.map(x => q(phraseAt(x.s.toks, x.e))))].join(', ') + '. The draft leaves it out.',
+        why: 'Check the draft hasn’t simplified away something that matters.' }, id);
     }
 
-    flags.sort((a, b) => (a.sev === b.sev ? 0 : a.sev === 'strong' ? -1 : 1));
+    flags.sort((a, b) => (a.sev === b.sev ? a.id - b.id : a.sev === 'strong' ? -1 : 1));
     return { evidence: m.ids, coverage: m.coverage, weak: false, flags, claimMarks, evMarks };
+  }
+
+  // Source sentences around the evidence, grouped by document, for the source clipping.
+  function context(idx, ids, whole) {
+    const bySrc = new Map();
+    ids.forEach(id => {
+      const s = idx.byId.get(id); if (!s) return;
+      const k = Number(id.slice(id.lastIndexOf(':') + 1));
+      if (!bySrc.has(s.srcId)) bySrc.set(s.srcId, { srcId: s.srcId, title: s.title, srcIdx: s.srcIdx, ev: new Set(), rows: new Set() });
+      const g = bySrc.get(s.srcId);
+      g.ev.add(k);
+      [k - 1, k, k + 1].forEach(j => { if (idx.byId.has(s.srcId + ':' + j)) g.rows.add(j); });
+    });
+    return [...bySrc.values()].sort((a, b) => a.srcIdx - b.srcIdx).map(g => {
+      const all = idx.sents.filter(s => s.srcId === g.srcId);
+      const rows = whole ? all.map((s, j) => j) : [...g.rows].sort((a, b) => a - b);
+      return { srcId: g.srcId, title: g.title, srcIdx: g.srcIdx, total: all.length,
+        rows: rows.map(j => ({ id: g.srcId + ':' + j, n: j + 1, text: idx.byId.get(g.srcId + ':' + j).text, ev: g.ev.has(j) })) };
+    });
   }
 
   function phraseAt(toks, t) {
@@ -355,7 +388,7 @@ const PT = (() => {
       while ((m = re.exec(s.text))) {
         const words = norm(m[1]).split(' ');
         const sc = words.filter(w => target.has(w)).length / Math.max(words.length, target.size);
-        if (sc > score) { score = sc; best = { title: s.title, text: m[1] }; }
+        if (sc > score) { score = sc; best = { title: s.title, text: m[1], sentId: s.id, start: m.index, end: m.index + m[0].length }; }
       }
     });
     return score > 0.3 ? best : null;
@@ -388,5 +421,5 @@ const PT = (() => {
     return ops.map((o, k) => ({ t: o.t, s: (k ? ' ' : '') + o.s }));
   }
 
-  return { splitSentences, tokenize, buildIndex, analyze, diffWords };
+  return { splitSentences, tokenize, buildIndex, analyze, context, diffWords };
 })();

@@ -1,37 +1,45 @@
 /* Paper Trail app: state, practice story, helpers and the setup step. */
 const STORE_KEY = 'papertrail.v1';
 const NAME_KEY = 'papertrail.reviewer';
+const COACH_KEY = 'papertrail.coach';
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Math.random().toString(36).slice(2, 9);
 const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 
 const ICON = {
-  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
-  pencil: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>',
-  flag: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg>',
-  ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2"/></svg>',
-  minus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h8"/></svg>',
+  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+  pencil: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/></svg>',
+  ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2"/></svg>',
+  minus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>',
   lock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>',
-  hold: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.5 5.5v5M9.5 5.5v5"/></svg>'
+  prev: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg>',
+  next: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>',
+  arrow: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>'
 };
 
 const STATUS = {
-  unreviewed: { label: 'Not checked', cls: 'st-unreviewed', icon: '' },
-  supported: { label: 'Supported', cls: 'st-supported', icon: ICON.check },
-  fixed: { label: 'Fixed', cls: 'st-fixed', icon: ICON.pencil },
-  open: { label: 'Needs a check', cls: 'st-open', icon: ICON.ask },
-  cut: { label: 'Cut', cls: 'st-cut', icon: ICON.minus },
-  notclaim: { label: 'Not a claim', cls: 'st-notclaim', icon: ICON.minus }
+  unreviewed: { label: 'Not checked', icon: '' },
+  supported: { label: 'Supported', icon: ICON.check },
+  fixed: { label: 'Fixed', icon: ICON.pencil },
+  open: { label: 'Needs a check', icon: ICON.ask },
+  cut: { label: 'Cut', icon: ICON.minus },
+  notclaim: { label: 'Not a claim', icon: ICON.minus }
 };
 
-const PURPOSES = ['summarize source documents', 'draft parts of the text', 'translate source material', 'suggest edits'];
+// Stored value is the phrase the reader note uses; the label reads inside "This draft was ___".
+const PURPOSES = [
+  { v: 'summarize source documents', l: 'summarized from its sources' },
+  { v: 'draft parts of the text', l: 'partly drafted' },
+  { v: 'translate source material', l: 'translated from its sources' },
+  { v: 'suggest edits', l: 'edited' }
+];
 
 /* ---------- practice story (fictional) ---------- */
 const DEMO = {
   slug: 'Millbrook small business grants',
   aiTool: 'a chatbot',
-  aiPurpose: PURPOSES[0],
+  aiPurpose: PURPOSES[0].v,
   draft: 'Millbrook will give all small businesses $5,000 grants starting April 7. The city has set aside $400,000 for the program, enough to fund 80 grants. Businesses must have been operating for at least two years to qualify. Applications will be reviewed in the order they are received. City council unanimously approved the program on March 2. Council member Dana Ruiz said the program “should help businesses that have not received other relief.” The program is expected to create 200 jobs. Grants can be used for rent, equipment or repairs.',
   sources: [
     { title: 'City of Millbrook news release, March 3', text: 'The City of Millbrook will open applications for the Small Business Recovery Grant on April 7. Eligible applicants may receive up to $5,000 to cover rent, equipment or repairs. To be eligible, a business must be located within city limits, have fewer than 20 employees, and have been operating for at least one year. The city has set aside $400,000 for the program, which is expected to fund about 80 grants. Applications will be reviewed in the order they are received until funds run out.' },
@@ -53,10 +61,10 @@ const DEMO_DONE = [
 /* ---------- state ---------- */
 let S = blank();
 let IDX = null;            // engine index over the current sources
-let ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false };
+let ui = { claim: 0, mode: null, exportTab: 'clean', picker: false, whole: false, omitOpen: false, pop: -1, thunk: false };
 
 function blank() {
-  return { v: 1, slug: '', aiTool: '', aiPurpose: PURPOSES[0], draft: '', sources: [{ id: uid(), title: '', text: '' }], claims: [], step: 'setup', analyzedAt: null };
+  return { v: 1, slug: '', aiTool: '', aiPurpose: PURPOSES[0].v, draft: '', sources: [{ id: uid(), title: '', text: '' }], claims: [], step: 'setup', analyzedAt: null };
 }
 function reviewer() { return ($('#reviewer').value || '').trim(); }
 
@@ -100,7 +108,7 @@ function loadDemo(done) {
     });
   }
   S.step = done ? 'export' : 'review';
-  ui.claim = 0; ui.mode = null; ui.filter = 'all';
+  ui.claim = 0; ui.mode = null; ui.picker = false; ui.whole = false;
   save();
 }
 
@@ -138,10 +146,10 @@ function download(name, text, type) {
 }
 function fileSlug() { return (S.slug || 'review').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'review'; }
 
-/* Wrap [start, end, cls] ranges of text in marks; later ranges never split earlier ones. */
+/* Wrap [start, end, class, flagId] ranges of text in marks; a flag's marks carry its id for hover linking. */
 function marked(text, ranges) {
-  const rs = ranges.filter(r => r[1] > r[0]).sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
-  const pri = c => (c === 'shared' ? 0 : 1);
+  const rs = (ranges || []).filter(r => r[1] > r[0]).sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
+  const pri = c => (c === 'shared' ? 0 : c === 'm-soft' ? 1 : 2);
   const kept = [];
   rs.forEach(r => {
     const clash = kept.findIndex(k => r[0] < k[1] && r[1] > k[0]);
@@ -150,68 +158,71 @@ function marked(text, ranges) {
   });
   kept.sort((a, b) => a[0] - b[0]);
   let out = '', pos = 0;
-  kept.forEach(([s, e, c]) => {
+  kept.forEach(([s, e, c, f]) => {
     if (s < pos) return;
     out += esc(text.slice(pos, s));
-    out += c === 'shared' ? '<span class="shared">' + esc(text.slice(s, e)) + '</span>' : '<mark class="' + c + '">' + esc(text.slice(s, e)) + '</mark>';
+    out += c === 'shared' ? '<span class="shared">' + esc(text.slice(s, e)) + '</span>'
+      : '<mark class="' + c + '"' + (f != null ? ' data-f="' + f + '"' : '') + '>' + esc(text.slice(s, e)) + '</mark>';
     pos = e;
   });
   return out + esc(text.slice(pos));
 }
-function pill(status) { const s = STATUS[status]; return '<span class="pill ' + s.cls + '">' + s.icon + esc(s.label) + '</span>'; }
+function chip(status) { const s = STATUS[status]; return '<span class="chip ' + status + '">' + s.icon + esc(s.label) + '</span>'; }
 function counts() {
   const c = { unreviewed: 0, supported: 0, fixed: 0, open: 0, cut: 0, notclaim: 0 };
   S.claims.forEach(x => { c[x.status]++; });
   return c;
 }
 
-/* ---------- step 1: setup ---------- */
+/* ---------- step 1: copy and sources ---------- */
 function viewSetup() {
   const ready = S.draft.trim() && S.sources.some(s => s.text.trim());
   return `
-  <div class="view-head">
-    <div><h2 id="stepTitle" tabindex="-1">Add the AI-assisted copy and its sources</h2>
-    <p class="lede">Paste the draft that an AI tool wrote or summarized, then the documents it was based on. Paper Trail splits the draft into claims and pairs each one with the source passages that should support it.</p></div>
-  </div>
-  <div class="stack">
-    <div class="examples">
-      <p><strong>New here?</strong> Try a short practice story about a city grant program. It has eight claims and the kinds of errors AI summaries make.</p>
-      <button class="btn btn-primary" type="button" data-act="demo">Load the practice story</button>
-      <button class="btn" type="button" data-act="demo-done">See a finished review</button>
+  <div class="setup">
+    <div class="setup-intro">
+      <h1 id="stepTitle" tabindex="-1">Check AI-assisted copy against its sources</h1>
+      <p>Paste the draft an AI tool wrote or summarized, and the documents it came from. Paper Trail splits the draft into claims and shows each one beside the source passage that should back it up.</p>
     </div>
-    <div class="setup-grid">
-      <div class="col">
-        <div class="field"><label for="slug">Story name</label><input class="input" id="slug" value="${esc(S.slug)}" placeholder="For example: School board budget brief"></div>
-        <div class="field"><label for="draft">AI-assisted draft</label>
-          <textarea id="draft" rows="12" placeholder="Paste the copy here.">${esc(S.draft)}</textarea></div>
-        <div class="panel ai-use">
-          <div class="field"><label for="aiTool">AI tool used</label><input class="input" id="aiTool" value="${esc(S.aiTool)}" placeholder="For example: ChatGPT"></div>
-          <div class="field"><label for="aiPurpose">It was used to</label>
-            <select class="input" id="aiPurpose">${PURPOSES.map(p => `<option${p === S.aiPurpose ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-        </div>
+    <section class="practice" aria-label="Practice story">
+      <span class="eyebrow">Practice</span>
+      <p>A city grant story. A chatbot summarized two documents, and seven of its eight claims are off in ways that are easy to miss.</p>
+      <div class="actions">
+        <button class="btn" type="button" data-act="demo">Open the practice story</button>
+        <button class="btn alt" type="button" data-act="demo-done">See a finished review</button>
       </div>
-      <div class="col">
-        <div class="label">Sources</div>
+    </section>
+    <div class="setup-grid">
+      <section class="sheet manuscript" aria-label="AI-assisted draft">
+        <div class="slug-row"><label class="eyebrow" for="slug">Slug</label><input id="slug" value="${esc(S.slug)}" placeholder="School board budget"></div>
+        <label class="sr-only" for="draft">AI-assisted draft</label>
+        <textarea id="draft" placeholder="Paste the AI-assisted draft here.">${esc(S.draft)}</textarea>
+        <p class="madlib">This draft was
+          <label class="sr-only" for="aiPurpose">How AI was used</label><select id="aiPurpose">${PURPOSES.map(p => `<option value="${esc(p.v)}"${p.v === S.aiPurpose ? ' selected' : ''}>${esc(p.l)}</option>`).join('')}</select>
+          using <label class="sr-only" for="aiTool">AI tool</label><input id="aiTool" value="${esc(S.aiTool)}" placeholder="ChatGPT">.</p>
+      </section>
+      <section class="sources" aria-label="Sources">
         ${S.sources.map((s, i) => `
-        <div class="panel source-card" data-src="${s.id}">
-          <div class="row">
+        <div class="sheet src-sheet" data-src="${s.id}">
+          <div class="src-head">
+            <span class="eyebrow">Source ${i + 1}</span>
             <label class="sr-only" for="st-${s.id}">Source ${i + 1} name</label>
-            <input class="input" id="st-${s.id}" data-field="title" value="${esc(s.title)}" placeholder="Source ${i + 1}: name and date">
+            <input id="st-${s.id}" data-field="title" value="${esc(s.title)}" placeholder="Name and date, e.g. Council minutes, March 2">
             ${S.sources.length > 1 ? `<button class="btn btn-quiet btn-sm" type="button" data-act="rm-src" data-id="${s.id}" aria-label="Remove source ${i + 1}">Remove</button>` : ''}
           </div>
           <label class="sr-only" for="sx-${s.id}">Source ${i + 1} text</label>
-          <textarea id="sx-${s.id}" data-field="text" rows="7" placeholder="Paste the source text: a news release, minutes, a report.">${esc(s.text)}</textarea>
+          <textarea id="sx-${s.id}" data-field="text" placeholder="Paste the source text: a news release, minutes, a report.">${esc(s.text)}</textarea>
         </div>`).join('')}
-        <div class="actions">
-          <button class="btn" type="button" data-act="add-src">Add another source</button>
-          <label class="btn btn-quiet" for="srcFile">Add a .txt file</label>
+        <div class="src-tools">
+          <button class="btn btn-sm" type="button" data-act="add-src">Add a source</button>
+          <label class="btn btn-quiet btn-sm" for="srcFile">Add a .txt file</label>
           <input type="file" id="srcFile" accept=".txt,.md,text/plain" hidden>
         </div>
-      </div>
+      </section>
     </div>
-    <div class="actions">
-      <button class="btn btn-primary" type="button" data-act="analyze" ${ready ? '' : 'disabled'}>Find claims</button>
-      <span class="privacy">${ICON.lock}<span>Everything stays in this browser tab. Nothing you paste is uploaded or sent to an AI service.</span></span>
+    <div class="go-row">
+      <button class="btn btn-primary" type="button" data-act="analyze" ${ready ? '' : 'disabled'}>Find the claims ${ICON.arrow}</button>
+      <span class="privacy">${ICON.lock}<span>What you paste stays in this browser tab. Nothing is uploaded or sent to an AI service.</span></span>
+      ${S.draft.trim() || S.claims.length ? '<button class="btn btn-quiet btn-sm" type="button" data-act="fresh">Clear and start over</button>' : ''}
     </div>
   </div>`;
 }
@@ -227,11 +238,11 @@ function bindSetup() {
     if (t.id === 'slug') S.slug = t.value;
     else if (t.id === 'draft') S.draft = t.value;
     else if (t.id === 'aiTool') S.aiTool = t.value;
-    else if (t.id === 'aiPurpose') S.aiPurpose = t.value;
     else if (t.dataset.field) {
       const src = S.sources.find(s => s.id === t.closest('[data-src]').dataset.src);
       if (src) src[t.dataset.field] = t.value;
     }
+    else return;
     refreshReady(); save();
   });
   main.addEventListener('change', e => {

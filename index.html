@@ -6,270 +6,365 @@
 <title>Paper Trail</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Check AI-assisted copy against its sources, one claim at a time. Runs in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Schibsted+Grotesk:wght@400..700&display=swap">
 <style>
-/* Layout: a copy desk. A galley of claims on the left, draft and source side by side on the right, blue pencil for edits. */
+/* Layout: proof sheets on a copy desk. The draft is a live proof on the left; the claim being checked,
+   its source clipping and the editor's queries sit on the sheet to its right. Red pencil for problems,
+   highlighter for careful words, blue pencil for the editor's own changes. */
 :root {
-  --bg: #f4f5f2;
-  --surface: #ffffff;
-  --sunk: #eceee9;
-  --ink: #16191d;
-  --muted: #586170;
-  --line: #d6d9d3;
-  --pencil: #1f5fbf;          /* the editor's blue pencil: links, focus, primary actions */
+  --desk: #e8eae5;
+  --sheet: #ffffff;
+  --sheet-2: #f5f6f3;
+  --ink: #17191c;
+  --ink-2: #545b64;
+  --ink-3: #868d96;
+  --rule: #dcdfd9;
+  --rule-2: #bdc1ba;
+  --pencil: #2456a6;
   --pencil-ink: #ffffff;
-  --pencil-soft: #e4edfa;
-  --strong: #a8261b;          /* likely overstated or wrong */
-  --strong-bg: #fbe9e6;
-  --soft: #7d4e00;            /* source is more careful */
-  --soft-bg: #fbf0d6;
-  --ok: #1d6f42;
-  --ok-bg: #e2f2e8;
-  --open: #5d3a96;
-  --open-bg: #eee7f8;
-  --cut: #586170;
-  --cut-bg: #e9ebe7;
-  --shadow: 0 1px 2px rgba(22, 25, 29, .06), 0 4px 16px rgba(22, 25, 29, .06);
-  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-copy: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --r: 6px;
+  --pencil-wash: #e7eefa;
+  --red: #b3261a;
+  --red-wash: #fbe8e5;
+  --hi: #ffef9e;
+  --hi-ink: #6a5000;
+  --ok: #1d7446;
+  --ok-wash: #e1f1e7;
+  --hold: #6a3eae;
+  --hold-wash: #efe8fa;
+  --shadow: 0 1px 0 rgba(23, 25, 28, .05), 0 2px 6px rgba(23, 25, 28, .07);
+  --lift: 0 10px 30px rgba(23, 25, 28, .16);
+  --font-copy: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-ui: "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-type: "Courier Prime", "Courier New", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121417; --surface: #1a1d21; --sunk: #202429; --ink: #e8eaed; --muted: #9ba4af; --line: #2e333a;
-    --pencil: #8db2f2; --pencil-ink: #0e1726; --pencil-soft: #1d2a3f;
-    --strong: #f2958b; --strong-bg: #3a1f1c; --soft: #f0c46e; --soft-bg: #362c16;
-    --ok: #82d2a5; --ok-bg: #17301f; --open: #c6aaf2; --open-bg: #2a2140; --cut: #9ba4af; --cut-bg: #262a30;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    --desk: #0f1113; --sheet: #191c20; --sheet-2: #1f2328; --ink: #eceef0; --ink-2: #a5acb5; --ink-3: #737a84;
+    --rule: #2b3036; --rule-2: #3e444c; --pencil: #93b6f5; --pencil-ink: #0d1624; --pencil-wash: #1b2740;
+    --red: #f19489; --red-wash: #3a1d1a; --hi: #4d4213; --hi-ink: #f6dc78; --ok: #81d4a5; --ok-wash: #15301f;
+    --hold: #c6a9f5; --hold-wash: #2a2140; --shadow: 0 1px 0 rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .45);
+    --lift: 0 10px 30px rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121417; --surface: #1a1d21; --sunk: #202429; --ink: #e8eaed; --muted: #9ba4af; --line: #2e333a;
-  --pencil: #8db2f2; --pencil-ink: #0e1726; --pencil-soft: #1d2a3f;
-  --strong: #f2958b; --strong-bg: #3a1f1c; --soft: #f0c46e; --soft-bg: #362c16;
-  --ok: #82d2a5; --ok-bg: #17301f; --open: #c6aaf2; --open-bg: #2a2140; --cut: #9ba4af; --cut-bg: #262a30;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  --desk: #0f1113; --sheet: #191c20; --sheet-2: #1f2328; --ink: #eceef0; --ink-2: #a5acb5; --ink-3: #737a84;
+  --rule: #2b3036; --rule-2: #3e444c; --pencil: #93b6f5; --pencil-ink: #0d1624; --pencil-wash: #1b2740;
+  --red: #f19489; --red-wash: #3a1d1a; --hi: #4d4213; --hi-ink: #f6dc78; --ok: #81d4a5; --ok-wash: #15301f;
+  --hold: #c6a9f5; --hold-wash: #2a2140; --shadow: 0 1px 0 rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .45);
+  --lift: 0 10px 30px rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { min-height: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 var(--font-ui);
-  -webkit-font-smoothing: antialiased;
-}
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
-a { color: var(--pencil); }
+body { margin: 0; background: var(--desk); color: var(--ink); font: 15px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--sheet); }
+a { color: var(--pencil); text-underline-offset: 2px; }
 button, input, textarea, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--pencil); outline-offset: 2px; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; }
+p { margin: 0; }
+.type { font-family: var(--font-type); }
+.eyebrow { font: 700 11.5px/1.2 var(--font-type); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.sheet { background: var(--sheet); box-shadow: var(--shadow); border-radius: 2px; }
 
-/* Header */
-.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding-block: 10px; }
-.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.brand b { font: 600 20px/1.1 var(--font-copy); letter-spacing: -.01em; }
-.brand span { color: var(--muted); font-size: 13px; }
-.steps { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
-.steps button {
-  border: 0; background: none; padding: 6px 10px; border-radius: 999px; cursor: pointer;
-  color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center;
-}
-.steps button .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-variant-numeric: tabular-nums; }
-.steps button[aria-current="step"] { color: var(--ink); background: var(--sunk); font-weight: 600; }
-.steps button[aria-current="step"] .n { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--sheet); border-bottom: 1px solid var(--rule); }
+.top .wrap { display: flex; align-items: center; gap: 10px 28px; flex-wrap: wrap; min-height: 58px; padding-block: 8px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand svg { width: 26px; height: 26px; flex: none; }
+.brand b { font: 600 21px/1 var(--font-copy); letter-spacing: -.015em; font-variation-settings: "opsz" 72; }
+.steps { display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.steps button { border: 0; background: none; padding: 8px 10px; cursor: pointer; color: var(--ink-3); font-size: 14px; font-weight: 500; display: flex; gap: 7px; align-items: baseline; border-bottom: 2px solid transparent; }
+.steps button .n { font: 700 12px var(--font-type); }
+.steps button:hover:not(:disabled) { color: var(--ink); }
+.steps button[aria-current="step"] { color: var(--ink); border-bottom-color: var(--ink); }
 .steps button:disabled { opacity: .45; cursor: default; }
-.top-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.who { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.who input { width: 9.5em; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); font-size: 13px; }
+.top-tools { margin-left: auto; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; }
+.who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.who input { width: 9.5em; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 2px; background: var(--sheet-2); font-size: 13px; }
+.who input:focus { outline: none; border-color: var(--pencil); background: var(--sheet); }
 
 /* Buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; font-weight: 500; line-height: 1.2; text-decoration: none; color: var(--ink); }
-.btn:hover { border-color: var(--muted); }
-.btn-primary { background: var(--pencil); color: var(--pencil-ink); border-color: var(--pencil); }
-.btn-primary:hover { filter: brightness(1.06); border-color: var(--pencil); }
-.btn-quiet { border-color: transparent; background: none; color: var(--muted); }
-.btn-quiet:hover { color: var(--ink); border-color: var(--line); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border-radius: 3px; border: 1px solid var(--rule-2); background: var(--sheet); cursor: pointer; font-size: 14px; font-weight: 600; line-height: 1.2; color: var(--ink); text-decoration: none; transition: background .12s, border-color .12s, transform .06s; }
+.btn:hover { border-color: var(--ink-2); }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--ink); border-color: var(--ink); color: var(--sheet); }
+.btn-primary:hover { background: var(--pencil); border-color: var(--pencil); color: var(--pencil-ink); }
+.btn-quiet { border-color: transparent; background: none; color: var(--ink-2); font-weight: 500; }
+.btn-quiet:hover { color: var(--ink); background: var(--sheet-2); border-color: transparent; }
 .btn-sm { padding: 5px 10px; font-size: 13px; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .btn svg { width: 16px; height: 16px; flex: none; }
+kbd { font: 700 10.5px/1 var(--font-type); border: 1px solid currentColor; border-radius: 2px; padding: 2px 4px; opacity: .55; }
 
-main { padding-block: 24px 64px; }
-h1, h2, h3 { text-wrap: balance; margin: 0; }
-h2 { font: 600 22px/1.25 var(--font-copy); letter-spacing: -.01em; }
-h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-.lede { color: var(--muted); max-width: 68ch; margin: 6px 0 0; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-.hint { font-size: 13px; color: var(--muted); }
-.view-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 18px; }
+main { padding-block: 28px 72px; }
 
 /* Setup */
-.setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.setup { display: grid; gap: 22px; }
+.setup-intro { display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: end; justify-content: space-between; }
+.setup-intro h1 { font: 600 clamp(28px, 4vw, 40px)/1.08 var(--font-copy); letter-spacing: -.02em; font-variation-settings: "opsz" 72; max-width: 18ch; }
+.setup-intro p { color: var(--ink-2); max-width: 54ch; font-size: 15.5px; }
+.practice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px 22px; align-items: center; padding: 18px 22px; background: var(--ink); color: var(--sheet); border-radius: 2px; }
+.practice .eyebrow { color: color-mix(in srgb, var(--sheet) 60%, transparent); }
+.practice p { font: 17px/1.4 var(--font-copy); }
+.practice .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.practice .btn { background: var(--sheet); color: var(--ink); border-color: var(--sheet); }
+.practice .btn.alt { background: none; color: var(--sheet); border-color: color-mix(in srgb, var(--sheet) 40%, transparent); }
+.setup-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.manuscript { padding: 22px 26px 26px; display: grid; gap: 14px; }
+.slug-row { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+.slug-row label { flex: none; }
+.slug-row input { flex: 1; min-width: 0; border: 0; background: none; font: 700 14px var(--font-type); letter-spacing: .04em; text-transform: uppercase; padding: 2px 0; }
+.slug-row input:focus { outline: none; }
+.manuscript textarea, .src-sheet textarea { width: 100%; border: 0; background: none; resize: vertical; padding: 0; font: 18px/1.65 var(--font-copy); color: var(--ink); min-height: 300px; }
+.manuscript textarea:focus, .src-sheet textarea:focus { outline: none; }
+.madlib { font: 17px/2 var(--font-copy); color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 12px; }
+.madlib input, .madlib select { font: 600 16px var(--font-ui); color: var(--ink); border: 0; border-bottom: 1.5px solid var(--rule-2); background: none; padding: 0 2px; border-radius: 0; }
+.madlib input { width: 9em; }
+.madlib input:focus, .madlib select:focus { outline: none; border-bottom-color: var(--pencil); }
+.sources { display: grid; gap: 14px; }
+.src-sheet { padding: 16px 20px 18px; display: grid; gap: 8px; }
+.src-sheet + .src-sheet { margin-top: -4px; }
+.src-head { display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.src-head .eyebrow { flex: none; }
+.src-head input { flex: 1; min-width: 0; border: 0; background: none; font: 600 14.5px var(--font-ui); padding: 2px 0; }
+.src-head input:focus { outline: none; }
+.src-sheet textarea { min-height: 150px; font-size: 16px; }
+.src-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.go-row { display: flex; gap: 14px 20px; flex-wrap: wrap; align-items: center; }
+.privacy { display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ink-2); }
+.privacy svg { width: 15px; height: 15px; color: var(--ok); flex: none; }
+
+/* Review: claim strip */
+.strip-bar { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 59px); z-index: 15; background: color-mix(in srgb, var(--desk) 92%, transparent); backdrop-filter: blur(6px); margin: -28px 0 20px; padding-block: 12px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; border-bottom: 1px solid var(--rule); }
+.strip { display: flex; flex-wrap: wrap; gap: 4px; }
+.sq { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--rule-2); background: var(--sheet); color: var(--ink-2); font: 700 12px var(--font-type); cursor: pointer; position: relative; border-radius: 2px; transition: background .2s, color .2s, border-color .2s; }
+.sq:hover { border-color: var(--ink); color: var(--ink); }
+.sq.flagged::after { content: ""; position: absolute; top: 2px; right: 2px; width: 0; height: 0; border-top: 6px solid var(--red); border-left: 6px solid transparent; }
+.sq.supported { background: var(--ok); border-color: var(--ok); color: var(--sheet); }
+.sq.fixed { background: var(--pencil); border-color: var(--pencil); color: var(--pencil-ink); }
+.sq.open { background: var(--hold); border-color: var(--hold); color: var(--sheet); }
+.sq.cut, .sq.notclaim { background: repeating-linear-gradient(-45deg, var(--sheet-2), var(--sheet-2) 3px, var(--rule) 3px, var(--rule) 4px); color: var(--ink-3); }
+.sq[aria-current="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.strip-count { font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.strip-count b { color: var(--ink); font-weight: 700; }
+.strip-bar .btn { margin-left: auto; }
+
+/* Review: layout */
+.review-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 22px; align-items: start; }
+.proof-sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 128px); padding: 22px 26px 26px; max-height: calc(100vh - 150px); overflow: auto; }
+.proof-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: 10px; margin-bottom: 16px; }
+.proof-head .slug { font: 700 13px var(--font-type); letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.article { font: 18px/1.75 var(--font-copy); }
+.article p + p { margin-top: 14px; }
+.sent { cursor: pointer; border-radius: 2px; padding: 1px 0; transition: background .15s, box-shadow .15s, color .15s; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.sent:hover { background: var(--sheet-2); }
+.sent:focus-visible { outline: 2px solid var(--pencil); outline-offset: 1px; }
+.sent.on { background: var(--pencil-wash); box-shadow: inset 0 -2px 0 var(--pencil); }
+.sent.s-cut { text-decoration: line-through; text-decoration-color: var(--red); color: var(--ink-3); }
+.sent.s-notclaim { color: var(--ink-2); }
+.sent.s-open { background: var(--hold-wash); }
+.sent.s-open.on { box-shadow: inset 0 -2px 0 var(--hold); }
+.cnum { display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 .2em; margin: 0 .28em 0 .05em; border: 1.25px solid currentColor; border-radius: 99px; font: 700 10.5px/1 var(--font-type); vertical-align: .32em; color: var(--ink-3); transition: background .2s, color .2s, transform .2s; }
+.cnum.flagged { color: var(--red); }
+.cnum.soft { color: var(--hi-ink); }
+.cnum.supported { background: var(--ok); border-color: var(--ok); color: var(--sheet); }
+.cnum.fixed { background: var(--pencil); border-color: var(--pencil); color: var(--pencil-ink); }
+.cnum.open { background: var(--hold); border-color: var(--hold); color: var(--sheet); }
+.cnum.cut, .cnum.notclaim { color: var(--ink-3); border-style: dashed; }
+.cnum.pop { animation: pop .35s ease-out; }
+@keyframes pop { 40% { transform: scale(1.35); } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+
+/* Marks */
+mark { color: inherit; background: none; }
+mark.m-strong { text-decoration: underline wavy var(--red); text-decoration-thickness: 1.5px; text-underline-offset: 4px; text-decoration-skip-ink: none; }
+.detail mark.m-strong, .clip mark.m-strong { background: var(--red-wash); border-radius: 2px; }
+mark.m-soft { background: linear-gradient(100deg, transparent 0, var(--hi) 3px, var(--hi) calc(100% - 3px), transparent 100%); padding: 0 2px; border-radius: 3px; }
+.shared { text-decoration: underline dotted var(--ink-3); text-underline-offset: 4px; }
+mark.lit { outline: 2px solid var(--pencil); outline-offset: 1px; border-radius: 2px; }
+
+/* Review: the claim sheet */
+.detail { padding: 22px 26px 24px; display: grid; gap: 22px; }
+.claim-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.claim-head h2 { font: 600 24px/1.1 var(--font-copy); letter-spacing: -.01em; font-variation-settings: "opsz" 60; }
+.claim-head .nav { margin-left: auto; display: flex; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 700 11px/1 var(--font-type); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 2px; border: 1px solid currentColor; }
+.chip svg { width: 12px; height: 12px; }
+.chip.unreviewed { color: var(--ink-3); }
+.chip.supported { color: var(--ok); background: var(--ok-wash); border-color: transparent; }
+.chip.fixed { color: var(--pencil); background: var(--pencil-wash); border-color: transparent; }
+.chip.open { color: var(--hold); background: var(--hold-wash); border-color: transparent; }
+.chip.cut, .chip.notclaim { color: var(--ink-2); background: var(--sheet-2); border-color: transparent; }
+.coach { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding: 14px 16px; background: var(--sheet-2); border: 1px dashed var(--rule-2); }
+.coach .step { font: 700 22px/1 var(--font-type); color: var(--pencil); padding-top: 2px; }
+.coach p { font-size: 14.5px; }
+.coach p strong { font-weight: 700; }
+.says { display: grid; gap: 8px; }
+.draft-text { font: 23px/1.5 var(--font-copy); letter-spacing: -.005em; overflow-wrap: anywhere; }
+.was { font-size: 13.5px; color: var(--ink-3); }
+.was del { color: var(--ink-3); text-decoration-color: var(--red); }
+.clip { border: 1px solid var(--rule); background: var(--sheet); }
+.clip + .clip { margin-top: 10px; }
+.clip-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 8px 12px; border-bottom: 1px solid var(--rule); background: var(--sheet-2); }
+.clip-head .eyebrow { color: var(--ink-2); overflow-wrap: anywhere; }
+.clip-body { padding: 10px 12px 12px; display: grid; gap: 6px; max-height: 340px; overflow: auto; }
+.line { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.gut { font: 700 11px var(--font-type); color: var(--ink-3); text-align: right; }
+.line .txt { font: 17px/1.55 var(--font-copy); overflow-wrap: anywhere; }
+.line.ctx .txt { color: var(--ink-3); }
+.line.ev .gut { color: var(--ink); }
+.weak { font-size: 13.5px; color: var(--red); font-weight: 600; }
+.clip-actions { display: flex; gap: 4px 8px; flex-wrap: wrap; margin-top: 6px; }
+.queries { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.q { display: grid; grid-template-columns: 3em minmax(0, 1fr); gap: 12px; padding: 12px 6px 12px 0; border-bottom: 1px solid var(--rule); cursor: default; transition: background .15s; }
+.q:hover, .q:focus-within, .q.lit { background: var(--sheet-2); }
+.q-id { font: 700 12px/1.6 var(--font-type); text-align: right; }
+.q-strong .q-id { color: var(--red); }
+.q-soft .q-id { color: var(--hi-ink); }
+.q-title { font-weight: 650; font-size: 15px; }
+.q-why { color: var(--ink-2); font-size: 14px; margin-top: 2px; }
+.q-none { padding: 12px 0; color: var(--ink-2); border-bottom: 1px solid var(--rule); font-size: 14.5px; }
+.decide { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.dbtn { display: grid; gap: 3px; justify-items: start; text-align: left; padding: 11px 12px; border: 1px solid var(--rule-2); background: var(--sheet); border-radius: 3px; cursor: pointer; transition: background .15s, border-color .15s, color .15s, transform .06s; }
+.dbtn:active { transform: translateY(1px); }
+.dbtn .row { display: flex; gap: 7px; align-items: center; font-weight: 650; font-size: 14.5px; }
+.dbtn .row svg { width: 16px; height: 16px; }
+.dbtn small { font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
+.dbtn.ok .row { color: var(--ok); }
+.dbtn.fix .row { color: var(--pencil); }
+.dbtn.open .row { color: var(--hold); }
+.dbtn.not .row { color: var(--ink-2); }
+.dbtn:hover { border-color: currentColor; }
+.dbtn.ok:hover { border-color: var(--ok); } .dbtn.fix:hover { border-color: var(--pencil); } .dbtn.open:hover { border-color: var(--hold); } .dbtn.not:hover { border-color: var(--ink-2); }
+.dbtn[aria-pressed="true"].ok { background: var(--ok); border-color: var(--ok); }
+.dbtn[aria-pressed="true"].fix { background: var(--pencil); border-color: var(--pencil); }
+.dbtn[aria-pressed="true"].open { background: var(--hold); border-color: var(--hold); }
+.dbtn[aria-pressed="true"].not { background: var(--ink-2); border-color: var(--ink-2); }
+.dbtn[aria-pressed="true"] .row, .dbtn[aria-pressed="true"] small { color: var(--sheet); }
+.editor { display: grid; gap: 12px; padding: 16px; background: var(--sheet-2); border-top: 2px solid var(--ink); }
+.editor .label, .field label { font-weight: 650; font-size: 14px; }
+.editor textarea { width: 100%; min-height: 96px; border: 1px solid var(--rule-2); border-radius: 2px; background: var(--sheet); padding: 10px 12px; font: 19px/1.5 var(--font-copy); resize: vertical; }
+.editor textarea:focus, .input:focus { outline: none; border-color: var(--pencil); box-shadow: 0 0 0 3px var(--pencil-wash); }
+.recheck { font-size: 13.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: baseline; }
+.recheck.clean { color: var(--ok); }
+.input { width: 100%; border: 1px solid var(--rule-2); border-radius: 2px; background: var(--sheet); padding: 8px 10px; }
 .field { display: grid; gap: 6px; }
-.field label, .label { font-weight: 600; font-size: 14px; }
-textarea, .input { width: 100%; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 12px; }
-textarea { font: 16px/1.55 var(--font-copy); resize: vertical; min-height: 120px; }
-textarea:focus, .input:focus { border-color: var(--pencil); outline: none; box-shadow: 0 0 0 3px var(--pencil-soft); }
-.col { display: grid; gap: 14px; align-content: start; min-width: 0; }
-.source-card { padding: 12px; display: grid; gap: 8px; }
-.source-card .row { display: flex; gap: 8px; align-items: center; }
-.source-card .row .input { flex: 1; min-width: 0; font-weight: 600; }
-.ai-use { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 12px; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); }
-.privacy svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--ok); }
-.examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; background: var(--pencil-soft); border-radius: 8px; }
-.examples p { margin: 0; flex: 1 1 260px; font-size: 14px; }
-
-/* Review */
-.summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 14px; margin-bottom: 16px; }
-.meter { flex: 1 1 200px; height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; display: flex; }
-.meter i { display: block; height: 100%; }
-.counts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.counts b { color: var(--ink); }
-.review-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
-.galley { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); max-height: calc(100vh - 96px); overflow: auto; padding: 6px; }
-.galley ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.galley ol button {
-  width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: var(--r);
-  padding: 8px 10px; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: start;
-}
-.galley ol button:hover { background: var(--sunk); }
-.galley ol button[aria-current="true"] { background: var(--pencil-soft); border-color: var(--pencil); }
-.galley .num { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
-.galley .txt { font: 14px/1.4 var(--font-copy); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.galley-filter { display: flex; gap: 4px; padding: 4px 4px 8px; flex-wrap: wrap; }
-
-.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; line-height: 1.5; }
-.pill svg { width: 12px; height: 12px; }
-.st-unreviewed { background: var(--sunk); color: var(--muted); }
-.st-supported { background: var(--ok-bg); color: var(--ok); }
-.st-fixed { background: var(--pencil-soft); color: var(--pencil); }
-.st-open { background: var(--open-bg); color: var(--open); }
-.st-cut, .st-notclaim { background: var(--cut-bg); color: var(--cut); }
-.fl-strong { background: var(--strong-bg); color: var(--strong); }
-.fl-soft { background: var(--soft-bg); color: var(--soft); }
-
-.claim { padding: 20px; display: grid; gap: 18px; }
-.claim-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
-.claim-head h2 { font-size: 18px; }
-#claimTitle, #stepTitle { scroll-margin-top: 96px; }
-.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
-.says { border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
-.says.draft { background: var(--sunk); }
-.says.source { border: 1px solid var(--line); }
-.copy { font: 18px/1.6 var(--font-copy); margin: 0; overflow-wrap: anywhere; }
-.copy.small { font-size: 16px; }
-.src-title { font-size: 12px; color: var(--muted); font-weight: 600; }
-.passage + .passage { border-top: 1px dashed var(--line); padding-top: 8px; }
-mark { color: inherit; border-radius: 3px; padding: 0 2px; }
-mark.m-strong { background: var(--strong-bg); box-shadow: inset 0 -2px 0 var(--strong); }
-mark.m-soft { background: var(--soft-bg); box-shadow: inset 0 -2px 0 var(--soft); }
-.shared { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--muted) 45%, transparent); text-underline-offset: 3px; }
-.weak { font-size: 13px; color: var(--strong); font-weight: 600; }
-
-.flags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.flags li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
-.flags li p { margin: 0; }
-.flags li .why { color: var(--muted); font-size: 14px; }
-.flags .none { grid-template-columns: minmax(0, 1fr); color: var(--muted); }
-
-.decide { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
-.decide-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.decide-row .btn[aria-pressed="true"] { outline: 2px solid currentColor; outline-offset: 1px; }
-.btn-ok { color: var(--ok); }
-.btn-fix { color: var(--pencil); }
-.btn-open { color: var(--open); }
-.btn-cut { color: var(--cut); }
-kbd { font: 11px/1 var(--font-ui); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; color: var(--muted); background: var(--surface); }
-.editor { display: grid; gap: 10px; padding: 14px; border-radius: 8px; background: var(--pencil-soft); }
-.editor textarea { min-height: 90px; }
 .task-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
-.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; }
-.checks label { display: flex; gap: 6px; align-items: center; }
-.picker { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; }
+.checks label { display: flex; gap: 7px; align-items: center; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.decided-note { font-size: 13.5px; color: var(--ink-2); display: flex; gap: 6px 10px; flex-wrap: wrap; align-items: center; }
+.note-field input { font-size: 14px; }
+.picker { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--rule); background: var(--sheet-2); }
 .picker ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; display: grid; gap: 2px; }
-.picker li label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: var(--r); cursor: pointer; font: 15px/1.45 var(--font-copy); }
-.picker li label:hover { background: var(--sunk); }
-.picker small { display: block; font: 12px/1.3 var(--font-ui); color: var(--muted); }
-.nav-row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.decided-note { font-size: 14px; color: var(--muted); }
+.picker li label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 6px 8px; cursor: pointer; font: 16px/1.45 var(--font-copy); border-radius: 2px; }
+.picker li label:hover { background: var(--sheet); }
+.picker small { display: block; font: 700 11px/1.4 var(--font-type); color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; }
 
 /* Export */
-.export-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.out { padding: 18px 20px; display: grid; gap: 12px; }
-.out-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-.out-head h2 { font-size: 18px; }
-.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-.tabs button { border: 1px solid var(--line); background: none; border-radius: 99px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
-.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
-.article { font: 18px/1.65 var(--font-copy); max-width: 68ch; }
-.article p { margin: 0 0 12px; }
-del { color: var(--strong); text-decoration-thickness: 1.5px; background: var(--strong-bg); }
-ins { color: var(--ok); text-decoration: none; background: var(--ok-bg); border-bottom: 1.5px solid var(--ok); }
-.held { background: var(--open-bg); box-shadow: inset 0 -2px 0 var(--open); border-radius: 3px; }
-.fn { font: 600 11px/1 var(--font-ui); color: var(--open); vertical-align: super; margin-left: 2px; }
-.banner { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
-.banner.hold { background: var(--open-bg); color: var(--open); }
-.banner.clear { background: var(--ok-bg); color: var(--ok); }
-.banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
-.tasklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.tasklist li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 4px; }
-.tasklist .meta { font-size: 13px; color: var(--muted); }
-.log-wrap { overflow-x: auto; }
-table.log { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
-table.log th, table.log td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-table.log th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
-table.log td.c { font-family: var(--font-copy); font-size: 15px; }
-.downloads { display: flex; flex-wrap: wrap; gap: 8px; }
-.stack { display: grid; gap: 20px; }
-.empty { padding: 32px; text-align: center; color: var(--muted); }
+.export-head { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: end; justify-content: space-between; margin-bottom: 20px; }
+.export-head h1 { font: 600 clamp(26px, 3.6vw, 36px)/1.1 var(--font-copy); letter-spacing: -.02em; font-variation-settings: "opsz" 72; }
+.export-head p { color: var(--ink-2); margin-top: 6px; }
+.export-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.proof-out { padding: 26px 32px 28px; display: grid; gap: 16px; }
+.proof-out .article { font-size: 19px; max-width: 64ch; }
+.tabs { display: flex; gap: 0; border: 1px solid var(--rule-2); border-radius: 3px; overflow: hidden; }
+.tabs button { border: 0; background: none; padding: 5px 12px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink-2); }
+.tabs button + button { border-left: 1px solid var(--rule-2); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--sheet); }
+del { color: var(--red); text-decoration-thickness: 1.5px; }
+ins { color: var(--pencil); text-decoration: none; border-bottom: 1.5px solid var(--pencil); }
+.held { background: var(--hold-wash); box-shadow: inset 0 -2px 0 var(--hold); }
+.fn { font: 700 11px/1 var(--font-type); color: var(--hold); vertical-align: super; margin-left: 2px; }
+.margin { display: grid; gap: 18px; }
+.stamp { justify-self: start; display: grid; gap: 2px; padding: 10px 16px 9px; border: 3px double currentColor; border-radius: 4px; font-family: var(--font-type); text-transform: uppercase; letter-spacing: .06em; transform: rotate(-3deg); opacity: .92; }
+.stamp .big { font-size: 26px; font-weight: 700; line-height: 1.05; letter-spacing: .1em; }
+.stamp .small { font-size: 12px; font-weight: 700; }
+.stamp.ok { color: var(--ok); }
+.stamp.hold { color: var(--hold); }
+.stamp.pending { color: var(--ink-3); }
+.stamp.thunk { animation: thunk .5s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes thunk { from { transform: rotate(-9deg) scale(1.5); opacity: 0; } to { transform: rotate(-3deg) scale(1); opacity: .92; } }
+.mnotes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.mnote { padding: 12px 14px; background: var(--sheet); box-shadow: var(--shadow); display: grid; gap: 4px; border-top: 3px solid var(--hold); }
+.mnote .eyebrow { color: var(--hold); }
+.mnote .meta { font-size: 13px; color: var(--ink-2); }
+.panel { padding: 16px 18px; display: grid; gap: 10px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.panel-head h2 { font-size: 15px; }
+.panel textarea { width: 100%; border: 1px solid var(--rule); border-radius: 2px; background: var(--sheet-2); padding: 10px 12px; font: 16px/1.55 var(--font-copy); resize: vertical; }
+.hint { font-size: 13px; color: var(--ink-2); }
+.ledger-wrap { overflow-x: auto; margin-top: 22px; }
+.ledger { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; background: var(--sheet); box-shadow: var(--shadow); }
+.ledger caption { text-align: left; padding: 0 0 10px; }
+.ledger th, .ledger td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+.ledger th { font: 700 11px var(--font-type); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); background: var(--sheet-2); }
+.ledger td.n { font: 700 12px var(--font-type); color: var(--ink-3); }
+.ledger td.c { font: 15.5px/1.45 var(--font-copy); }
+.ledger-tools { display: flex; justify-content: space-between; align-items: end; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+.ledger-tools h2 { font: 600 22px var(--font-copy); }
+.empty { padding: 40px; text-align: center; color: var(--ink-2); }
 
-/* About + dialogs + toast */
-details.about { margin-top: 28px; }
-details.about summary { cursor: pointer; color: var(--muted); font-size: 14px; }
-details.about .body { display: grid; gap: 8px; max-width: 72ch; padding-top: 10px; font-size: 14px; }
-details.about .body p { margin: 0; }
+/* Footer, dialog, toast */
+footer { color: var(--ink-2); font-size: 13px; padding-block: 0 36px; display: grid; gap: 10px; }
+details.about summary { cursor: pointer; }
+details.about .body { display: grid; gap: 8px; max-width: 74ch; padding-top: 10px; font-size: 14px; color: var(--ink); }
 .modal { position: fixed; inset: 0; background: rgba(10, 12, 14, .45); display: grid; place-items: center; z-index: 50; padding: 16px; }
-.modal .box { max-width: 440px; width: 100%; padding: 20px; display: grid; gap: 14px; box-shadow: var(--shadow); }
-.modal .box p { margin: 0; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 8px 16px; border-radius: 99px; font-size: 14px; z-index: 60; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
-footer { color: var(--muted); font-size: 13px; padding-block: 0 32px; }
+.modal .box { max-width: 440px; width: 100%; padding: 22px; display: grid; gap: 14px; background: var(--sheet); box-shadow: var(--lift); border-radius: 2px; }
+.modal h2 { font: 600 21px var(--font-copy); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--sheet); padding: 9px 16px; border-radius: 3px; font-size: 14px; z-index: 60; box-shadow: var(--lift); max-width: calc(100% - 32px); }
 
-@media (max-width: 900px) {
-  .setup-grid, .export-grid { grid-template-columns: minmax(0, 1fr); }
-  .review-grid { grid-template-columns: minmax(0, 1fr); }
-  .galley { position: static; max-height: 260px; }
-  .pair { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 980px) {
+  .review-grid, .export-grid, .setup-grid { grid-template-columns: minmax(0, 1fr); }
+  .proof-sheet { position: static; max-height: none; }
+  .decide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .top { position: static; }
+  .strip-bar { top: env(safe-area-inset-top, 0px); }
   .top-tools { margin-left: 0; width: 100%; }
-  .brand span { display: none; }
-  .ai-use, .task-grid { grid-template-columns: minmax(0, 1fr); }
-  .claim { padding: 14px; }
-  .copy { font-size: 17px; }
+  .practice { grid-template-columns: minmax(0, 1fr); }
+  .task-grid { grid-template-columns: minmax(0, 1fr); }
+  .coach { grid-template-columns: auto minmax(0, 1fr); }
+  .coach .btn { grid-column: 2; justify-self: start; margin-left: -10px; }
+  .detail, .proof-sheet, .manuscript, .proof-out { padding-left: 16px; padding-right: 16px; }
+  .draft-text { font-size: 20px; }
+  .article { font-size: 17px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
-    <div class="brand"><b>Paper Trail</b><span>Check AI-assisted copy against its sources</span></div>
+    <div class="brand">
+      <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <rect x="2.5" y="2.5" width="13" height="17" rx="1" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M5.5 7h7M5.5 10h7M5.5 13h4.5" stroke="currentColor" stroke-width="1.4"/>
+        <rect x="11.5" y="8.5" width="12" height="15" rx="1" fill="var(--sheet)" stroke="var(--pencil)" stroke-width="1.6"/>
+        <path d="M14.5 16.2l2.4 2.4 4.1-5" stroke="var(--pencil)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <b>Paper Trail</b>
+    </div>
     <nav aria-label="Steps">
       <ol class="steps" id="steps">
-        <li><button type="button" data-step="setup"><span class="n">1</span>Add copy and sources</button></li>
-        <li><button type="button" data-step="review"><span class="n">2</span>Check claims</button></li>
+        <li><button type="button" data-step="setup"><span class="n">1</span>Copy and sources</button></li>
+        <li><button type="button" data-step="review"><span class="n">2</span>Check</button></li>
         <li><button type="button" data-step="export"><span class="n">3</span>Export</button></li>
       </ol>
     </nav>
     <div class="top-tools">
-      <label class="who" for="reviewer">Reviewing as <input id="reviewer" placeholder="Your name" autocomplete="name"></label>
+      <label class="who" for="reviewer">Checking as <input id="reviewer" placeholder="Your name" autocomplete="name"></label>
       <button class="btn btn-quiet btn-sm" id="saveFile" type="button">Save review file</button>
       <button class="btn btn-quiet btn-sm" id="openFile" type="button">Open review file</button>
       <input type="file" id="fileInput" accept=".json,application/json" hidden>
@@ -281,22 +376,22 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 32px; }
 
 <footer class="wrap">
   <details class="about" id="about">
-    <summary>How this prototype works, and what it can't do yet</summary>
+    <summary>How Paper Trail works, and what it can't do yet</summary>
     <div class="body">
       <p><strong>It splits the draft into sentences</strong> and pairs each one with the source sentences that share its most distinctive words, numbers and names.</p>
-      <p><strong>It flags differences a reader would care about:</strong> absolutes the source doesn't use ("all", "unanimously"), numbers, names and quotes that don't match, and careful words the draft drops ("eligible", "may", "up to", "about", "until", "said").</p>
-      <p><strong>It never decides what's true.</strong> The editor decides, and Paper Trail records the decision, the wording change, the source and who checked it.</p>
-      <p><strong>Everything stays in this browser tab.</strong> There is no account, no server and no AI service. Nothing you paste is uploaded.</p>
-      <p><strong>Limits:</strong> matching is word-based, so a heavy paraphrase can pair with the wrong passage (pick the right one by hand). English only. Paste text; PDF import is planned.</p>
+      <p><strong>It flags what a reader would care about:</strong> absolutes the source doesn't use ("all", "unanimously"), numbers, names and quotes that don't match, and careful words the draft drops ("eligible", "may", "up to", "about", "until", "said").</p>
+      <p><strong>It never decides what's true.</strong> The editor decides. Paper Trail records the decision, the wording change, the source and who checked it.</p>
+      <p><strong>What you paste stays in this browser tab.</strong> There's no account, no server and no AI service. The page loads only its fonts from Google Fonts.</p>
+      <p><strong>Limits:</strong> matching is word-based, so a heavy paraphrase can pair with the wrong passage; pick the right one by hand. English only. Paste text or add a .txt file; PDF and Word import are planned.</p>
     </div>
   </details>
-  <p>Paper Trail is a working title. Prototype v0.1, November 2026, by Zeyad Genena.</p>
+  <p>Paper Trail is a working title. Prototype v0.2, November 2026, by Zeyad Genena. Free and open source.</p>
 </footer>
 
 <div id="live" class="sr-only" aria-live="polite"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="modal" class="modal" hidden>
-  <div class="box panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <h2 id="modalTitle"></h2>
     <p id="modalBody"></p>
     <div class="actions">
@@ -502,9 +597,13 @@ const PT = (() => {
     if (evidenceIds) { m.coverage = coverageOf(toks, idx, m.ids); m.weak = !m.ids.length || m.coverage < 0.35; }
     const ev = m.ids.map(id => idx.byId.get(id));
     const flags = [];
-    const claimMarks = [];                     // [start, end, cls]
+    let nextId = 0;
+    const newId = () => nextId++;
+    // Marks are [start, end, class, flagId]; a flag and every word it points at share one id.
+    const claimMarks = [];
     const evMarks = new Map(ev.map(s => [s.id, []]));
-    const markEv = (s, a, b, cls) => evMarks.get(s.id).push([s.toks[a].start, s.toks[b].end, cls]);
+    const markEv = (s, a, b, cls, f) => evMarks.get(s.id).push([s.toks[a].start, s.toks[b].end, cls, f]);
+    const flag = (f, id) => { f.id = id; flags.push(f); };
     const q = s => '“' + s + '”';
 
     const quotes = quoteRanges(text);
@@ -525,43 +624,47 @@ const PT = (() => {
     // Quotes must match a source word for word.
     quotes.forEach(r => {
       if (idx.allText.includes(norm(r.inner))) return;
+      const id = newId();
       const best = closestQuote(r.inner, idx);
-      claimMarks.push([r.start, r.end, 'm-strong']);
-      flags.push({ sev: 'strong', kind: 'quote', title: 'The quote doesn’t match the source word for word.',
-        why: best ? 'Closest quote in ' + best.title + ': ' + q(best.text) : 'No quote in the sources is close to it.' });
+      claimMarks.push([r.start, r.end, 'm-strong', id]);
+      if (best && evMarks.has(best.sentId)) evMarks.get(best.sentId).push([best.start, best.end, 'm-strong', id]);
+      flag({ sev: 'strong', kind: 'quote', title: 'The quote doesn’t match the source word for word.',
+        why: best ? 'Closest quote in ' + best.title + ': ' + q(best.text) : 'No quote in the sources is close to it.' }, id);
     });
 
     // Numbers.
     const pairedEvVals = new Set();
     toks.filter(t => t.isNum && !inQuote(t)).forEach(t => {
       if (evVals.has(t.val)) return;
+      const id = newId();
       const differs = !m.weak && ev.flatMap(s => s.toks).find(e => e.isNum && e.unit && e.unit === t.unit && !claimVals.has(e.val));
-      claimMarks.push([t.start, t.end, 'm-strong']);
+      claimMarks.push([t.start, t.end, 'm-strong', id]);
       if (differs) {
         pairedEvVals.add(differs.val);
         const s = ev.find(x => x.toks.includes(differs));
-        markEv(s, differs.i, Math.min(differs.i + 1, s.toks.length - 1), 'm-strong');
-        flags.push({ sev: 'strong', kind: 'number', title: 'The draft says ' + q(phraseAt(toks, t)) + '. The source says ' + q(phraseAt(s.toks, differs)) + '.',
-          why: 'A number changed between the source and the draft.' });
+        markEv(s, differs.i, Math.min(differs.i + 1, s.toks.length - 1), 'm-strong', id);
+        flag({ sev: 'strong', kind: 'number', title: 'The draft says ' + q(phraseAt(toks, t)) + '. The source says ' + q(phraseAt(s.toks, differs)) + '.',
+          why: 'A number changed between the source and the draft.' }, id);
         return;
       }
       const other = elsewhere(e => e.isNum && e.val === t.val);
-      flags.push(other
+      flag(other
         ? { sev: 'soft', kind: 'number', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + ': ' + q(other.text) + ' Add that passage if it supports the claim.' }
-        : { sev: 'strong', kind: 'number', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Find where this number comes from, or cut it.' });
+        : { sev: 'strong', kind: 'number', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Find where this number comes from, or cut it.' }, id);
     });
 
     // Names.
     toks.filter(t => t.name && !inQuote(t) && !evTerms.has(t.term)).forEach(t => {
+      const id = newId();
       const other = elsewhere(e => e.term === t.term);
-      claimMarks.push([t.start, t.end, other ? 'm-soft' : 'm-strong']);
-      flags.push(other
+      claimMarks.push([t.start, t.end, other ? 'm-soft' : 'm-strong', id]);
+      flag(other
         ? { sev: 'soft', kind: 'name', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + '. Add that passage if it supports the claim.' }
-        : { sev: 'strong', kind: 'name', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Check the name against a source before it runs.' });
+        : { sev: 'strong', kind: 'name', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Check the name against a source before it runs.' }, id);
     });
 
     if (m.weak) {
-      flags.unshift({ sev: 'strong', kind: 'weak', title: 'No source passage clearly supports this.',
+      flags.unshift({ id: newId(), sev: 'strong', kind: 'weak', title: 'No source passage clearly supports this.',
         why: ev.length ? 'The closest passage shares only a few words. Pick a passage by hand, add a source, or open a check.' : 'Add a source, pick a passage by hand, or open a check.' });
       return { evidence: m.ids, coverage: m.coverage, weak: true, flags, claimMarks, evMarks };
     }
@@ -576,15 +679,16 @@ const PT = (() => {
     findPhrases(toks, ABSOLUTE).forEach(h => {
       const t = toks[h.i];
       if (inQuote(t) || h.phrase.split(' ').every(w => evLower.has(w))) return;
-      claimMarks.push([toks[h.i].start, toks[h.j].end, 'm-strong']);
+      const id = newId();
+      claimMarks.push([toks[h.i].start, toks[h.j].end, 'm-strong', id]);
       const counter = [];
       ev.forEach(s => findPhrases(s.toks, RESTRICT).forEach(r => {
-        if (!claimLower.has(r.phrase)) { counter.push(r.phrase); markEv(s, r.i, r.j, 'm-soft'); }
+        if (!claimLower.has(r.phrase)) { counter.push(r.phrase); markEv(s, r.i, r.j, 'm-soft', id); }
       }));
-      extras.forEach(x => { counter.push(phraseAt(x.s.toks, x.e)); markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'); });
+      extras.forEach(x => { counter.push(phraseAt(x.s.toks, x.e)); markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft', id); });
       const uniq = [...new Set(counter)];
-      flags.push({ sev: 'strong', kind: 'absolute', title: 'The draft says ' + q(h.phrase) + '. The source doesn’t.',
-        why: (uniq.length ? 'The source says ' + uniq.map(q).join(', ') + '. ' : '') + 'Absolute words make a claim broader than its source.' });
+      flag({ sev: 'strong', kind: 'absolute', title: 'The draft says ' + q(h.phrase) + '. The source doesn’t.',
+        why: (uniq.length ? 'The source says ' + uniq.map(q).join(', ') + '. ' : '') + 'Absolute words make a claim broader than its source.' }, id);
     });
 
     // Limits on numbers the draft drops ("about 80", "up to $5,000").
@@ -594,20 +698,22 @@ const PT = (() => {
       const ct = toks.find(t => t.isNum && t.val === num.val);
       const before = toks.slice(Math.max(0, ct.i - 3), ct.i).map(t => t.lower).join(' ');
       if ((' ' + before + ' ').includes(' ' + h.phrase + ' ')) return;
-      markEv(s, h.i, h.j + 1, 'm-soft');
-      flags.push({ sev: 'soft', kind: 'approx', title: 'The source says ' + q(s.toks.slice(h.i, h.j + 2).map(t => t.raw).join(' ')) + '. The draft says ' + q(ct.raw) + '.',
-        why: h.phrase === 'up to' || h.phrase === 'as much as' || h.phrase === 'as many as' ? 'Dropping ' + q(h.phrase) + ' turns a maximum into a promise.' : 'Dropping ' + q(h.phrase) + ' turns an estimate or a limit into an exact figure.' });
+      const id = newId();
+      markEv(s, h.i, h.j + 1, 'm-soft', id);
+      claimMarks.push([ct.start, ct.end, 'm-soft', id]);
+      flag({ sev: 'soft', kind: 'approx', title: 'The source says ' + q(s.toks.slice(h.i, h.j + 2).map(t => t.raw).join(' ')) + '. The draft says ' + q(ct.raw) + '.',
+        why: h.phrase === 'up to' || h.phrase === 'as much as' || h.phrase === 'as many as' ? 'Dropping ' + q(h.phrase) + ' turns a maximum into a promise.' : 'Dropping ' + q(h.phrase) + ' turns an estimate or a limit into an exact figure.' }, id);
     }));
 
     // Hedges the draft drops.
     if (!toks.some(t => HEDGE_ANY.has(t.lower))) {
-      const seen = new Set();
+      const seen = new Set(), id = newId();
       ev.forEach(s => findPhrases(s.toks, HEDGE).forEach(h => {
         if (!near(s, h) || seen.has(h.phrase)) return;
-        seen.add(h.phrase); markEv(s, h.i, h.j, 'm-soft');
+        seen.add(h.phrase); markEv(s, h.i, h.j, 'm-soft', id);
       }));
-      if (seen.size) flags.push({ sev: 'soft', kind: 'hedge', title: 'The source is more careful: ' + [...seen].map(q).join(', ') + '.',
-        why: 'The draft states as certain what the source qualifies.' });
+      if (seen.size) flag({ sev: 'soft', kind: 'hedge', title: 'The source is more careful: ' + [...seen].map(q).join(', ') + '.',
+        why: 'The draft states as certain what the source qualifies.' }, id);
     }
 
     // Conditions the draft drops.
@@ -615,38 +721,60 @@ const PT = (() => {
       if (!near(s, h) || h.phrase.split(' ').every(w => claimLower.has(w))) return;
       let j = h.j;
       while (j + 1 < s.toks.length && j - h.i < 8 && !/[,;:.]/.test(s.text.slice(s.toks[j].end, s.toks[j + 1].start))) j++;
-      markEv(s, h.i, j, 'm-soft');
-      flags.push({ sev: 'soft', kind: 'condition', title: 'The source adds a condition: ' + q(s.text.slice(s.toks[h.i].start, s.toks[j].end)) + '.',
-        why: 'The draft leaves it out.' });
+      const id = newId();
+      markEv(s, h.i, j, 'm-soft', id);
+      flag({ sev: 'soft', kind: 'condition', title: 'The source adds a condition: ' + q(s.text.slice(s.toks[h.i].start, s.toks[j].end)) + '.',
+        why: 'The draft leaves it out.' }, id);
     }));
 
     // Attribution the draft drops.
     if (!findPhrases(toks, ATTRIB).length) {
       ev.forEach(s => findPhrases(s.toks, ATTRIB).forEach(h => {
         if (!near(s, h, 6)) return;
-        markEv(s, h.i, h.j, 'm-soft');
-        flags.push({ sev: 'soft', kind: 'attrib', title: 'The source attributes this: ' + q(h.phrase) + '.',
-          why: 'The draft states it as fact. Keep the attribution or confirm it independently.' });
+        const id = newId();
+        markEv(s, h.i, h.j, 'm-soft', id);
+        flag({ sev: 'soft', kind: 'attrib', title: 'The source attributes this: ' + q(h.phrase) + '.',
+          why: 'The draft states it as fact. Keep the attribution or confirm it independently.' }, id);
       }));
     }
 
     // Negation differs.
     const claimNeg = toks.some(t => t.neg && !inQuote(t));
     const evNeg = ev.some(s => s.toks.some(t => t.neg && !inEvQuote(s, t) && near(s, { i: t.i, j: t.i })));
-    if (claimNeg !== evNeg) flags.push({ sev: 'soft', kind: 'negation',
+    if (claimNeg !== evNeg) flag({ sev: 'soft', kind: 'negation',
       title: claimNeg ? 'The draft has a “not” or “no” the source doesn’t.' : 'The source has a “not” or “no” here. The draft doesn’t.',
-      why: 'Check that the meaning didn’t flip.' });
+      why: 'Check that the meaning didn’t flip.' }, newId());
 
     // Leftover detail, when no absolute flag already showed it.
     const closeExtras = extras.filter(x => x.close);
     if (closeExtras.length && !flags.some(f => f.kind === 'absolute')) {
-      closeExtras.forEach(x => markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'));
-      flags.push({ sev: 'soft', kind: 'detail', title: 'The source includes ' + [...new Set(closeExtras.map(x => q(phraseAt(x.s.toks, x.e))))].join(', ') + '. The draft leaves it out.',
-        why: 'Check the draft hasn’t simplified away something that matters.' });
+      const id = newId();
+      closeExtras.forEach(x => markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft', id));
+      flag({ sev: 'soft', kind: 'detail', title: 'The source includes ' + [...new Set(closeExtras.map(x => q(phraseAt(x.s.toks, x.e))))].join(', ') + '. The draft leaves it out.',
+        why: 'Check the draft hasn’t simplified away something that matters.' }, id);
     }
 
-    flags.sort((a, b) => (a.sev === b.sev ? 0 : a.sev === 'strong' ? -1 : 1));
+    flags.sort((a, b) => (a.sev === b.sev ? a.id - b.id : a.sev === 'strong' ? -1 : 1));
     return { evidence: m.ids, coverage: m.coverage, weak: false, flags, claimMarks, evMarks };
+  }
+
+  // Source sentences around the evidence, grouped by document, for the source clipping.
+  function context(idx, ids, whole) {
+    const bySrc = new Map();
+    ids.forEach(id => {
+      const s = idx.byId.get(id); if (!s) return;
+      const k = Number(id.slice(id.lastIndexOf(':') + 1));
+      if (!bySrc.has(s.srcId)) bySrc.set(s.srcId, { srcId: s.srcId, title: s.title, srcIdx: s.srcIdx, ev: new Set(), rows: new Set() });
+      const g = bySrc.get(s.srcId);
+      g.ev.add(k);
+      [k - 1, k, k + 1].forEach(j => { if (idx.byId.has(s.srcId + ':' + j)) g.rows.add(j); });
+    });
+    return [...bySrc.values()].sort((a, b) => a.srcIdx - b.srcIdx).map(g => {
+      const all = idx.sents.filter(s => s.srcId === g.srcId);
+      const rows = whole ? all.map((s, j) => j) : [...g.rows].sort((a, b) => a - b);
+      return { srcId: g.srcId, title: g.title, srcIdx: g.srcIdx, total: all.length,
+        rows: rows.map(j => ({ id: g.srcId + ':' + j, n: j + 1, text: idx.byId.get(g.srcId + ':' + j).text, ev: g.ev.has(j) })) };
+    });
   }
 
   function phraseAt(toks, t) {
@@ -663,7 +791,7 @@ const PT = (() => {
       while ((m = re.exec(s.text))) {
         const words = norm(m[1]).split(' ');
         const sc = words.filter(w => target.has(w)).length / Math.max(words.length, target.size);
-        if (sc > score) { score = sc; best = { title: s.title, text: m[1] }; }
+        if (sc > score) { score = sc; best = { title: s.title, text: m[1], sentId: s.id, start: m.index, end: m.index + m[0].length }; }
       }
     });
     return score > 0.3 ? best : null;
@@ -696,42 +824,50 @@ const PT = (() => {
     return ops.map((o, k) => ({ t: o.t, s: (k ? ' ' : '') + o.s }));
   }
 
-  return { splitSentences, tokenize, buildIndex, analyze, diffWords };
+  return { splitSentences, tokenize, buildIndex, analyze, context, diffWords };
 })();
 /* Paper Trail app: state, practice story, helpers and the setup step. */
 const STORE_KEY = 'papertrail.v1';
 const NAME_KEY = 'papertrail.reviewer';
+const COACH_KEY = 'papertrail.coach';
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Math.random().toString(36).slice(2, 9);
 const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 
 const ICON = {
-  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
-  pencil: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>',
-  flag: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg>',
-  ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2"/></svg>',
-  minus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h8"/></svg>',
+  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+  pencil: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/></svg>',
+  ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2"/></svg>',
+  minus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>',
   lock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>',
-  hold: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.5 5.5v5M9.5 5.5v5"/></svg>'
+  prev: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg>',
+  next: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>',
+  arrow: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>'
 };
 
 const STATUS = {
-  unreviewed: { label: 'Not checked', cls: 'st-unreviewed', icon: '' },
-  supported: { label: 'Supported', cls: 'st-supported', icon: ICON.check },
-  fixed: { label: 'Fixed', cls: 'st-fixed', icon: ICON.pencil },
-  open: { label: 'Needs a check', cls: 'st-open', icon: ICON.ask },
-  cut: { label: 'Cut', cls: 'st-cut', icon: ICON.minus },
-  notclaim: { label: 'Not a claim', cls: 'st-notclaim', icon: ICON.minus }
+  unreviewed: { label: 'Not checked', icon: '' },
+  supported: { label: 'Supported', icon: ICON.check },
+  fixed: { label: 'Fixed', icon: ICON.pencil },
+  open: { label: 'Needs a check', icon: ICON.ask },
+  cut: { label: 'Cut', icon: ICON.minus },
+  notclaim: { label: 'Not a claim', icon: ICON.minus }
 };
 
-const PURPOSES = ['summarize source documents', 'draft parts of the text', 'translate source material', 'suggest edits'];
+// Stored value is the phrase the reader note uses; the label reads inside "This draft was ___".
+const PURPOSES = [
+  { v: 'summarize source documents', l: 'summarized from its sources' },
+  { v: 'draft parts of the text', l: 'partly drafted' },
+  { v: 'translate source material', l: 'translated from its sources' },
+  { v: 'suggest edits', l: 'edited' }
+];
 
 /* ---------- practice story (fictional) ---------- */
 const DEMO = {
   slug: 'Millbrook small business grants',
   aiTool: 'a chatbot',
-  aiPurpose: PURPOSES[0],
+  aiPurpose: PURPOSES[0].v,
   draft: 'Millbrook will give all small businesses $5,000 grants starting April 7. The city has set aside $400,000 for the program, enough to fund 80 grants. Businesses must have been operating for at least two years to qualify. Applications will be reviewed in the order they are received. City council unanimously approved the program on March 2. Council member Dana Ruiz said the program “should help businesses that have not received other relief.” The program is expected to create 200 jobs. Grants can be used for rent, equipment or repairs.',
   sources: [
     { title: 'City of Millbrook news release, March 3', text: 'The City of Millbrook will open applications for the Small Business Recovery Grant on April 7. Eligible applicants may receive up to $5,000 to cover rent, equipment or repairs. To be eligible, a business must be located within city limits, have fewer than 20 employees, and have been operating for at least one year. The city has set aside $400,000 for the program, which is expected to fund about 80 grants. Applications will be reviewed in the order they are received until funds run out.' },
@@ -753,10 +889,10 @@ const DEMO_DONE = [
 /* ---------- state ---------- */
 let S = blank();
 let IDX = null;            // engine index over the current sources
-let ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false };
+let ui = { claim: 0, mode: null, exportTab: 'clean', picker: false, whole: false, omitOpen: false, pop: -1, thunk: false };
 
 function blank() {
-  return { v: 1, slug: '', aiTool: '', aiPurpose: PURPOSES[0], draft: '', sources: [{ id: uid(), title: '', text: '' }], claims: [], step: 'setup', analyzedAt: null };
+  return { v: 1, slug: '', aiTool: '', aiPurpose: PURPOSES[0].v, draft: '', sources: [{ id: uid(), title: '', text: '' }], claims: [], step: 'setup', analyzedAt: null };
 }
 function reviewer() { return ($('#reviewer').value || '').trim(); }
 
@@ -800,7 +936,7 @@ function loadDemo(done) {
     });
   }
   S.step = done ? 'export' : 'review';
-  ui.claim = 0; ui.mode = null; ui.filter = 'all';
+  ui.claim = 0; ui.mode = null; ui.picker = false; ui.whole = false;
   save();
 }
 
@@ -838,10 +974,10 @@ function download(name, text, type) {
 }
 function fileSlug() { return (S.slug || 'review').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'review'; }
 
-/* Wrap [start, end, cls] ranges of text in marks; later ranges never split earlier ones. */
+/* Wrap [start, end, class, flagId] ranges of text in marks; a flag's marks carry its id for hover linking. */
 function marked(text, ranges) {
-  const rs = ranges.filter(r => r[1] > r[0]).sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
-  const pri = c => (c === 'shared' ? 0 : 1);
+  const rs = (ranges || []).filter(r => r[1] > r[0]).sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
+  const pri = c => (c === 'shared' ? 0 : c === 'm-soft' ? 1 : 2);
   const kept = [];
   rs.forEach(r => {
     const clash = kept.findIndex(k => r[0] < k[1] && r[1] > k[0]);
@@ -850,68 +986,71 @@ function marked(text, ranges) {
   });
   kept.sort((a, b) => a[0] - b[0]);
   let out = '', pos = 0;
-  kept.forEach(([s, e, c]) => {
+  kept.forEach(([s, e, c, f]) => {
     if (s < pos) return;
     out += esc(text.slice(pos, s));
-    out += c === 'shared' ? '<span class="shared">' + esc(text.slice(s, e)) + '</span>' : '<mark class="' + c + '">' + esc(text.slice(s, e)) + '</mark>';
+    out += c === 'shared' ? '<span class="shared">' + esc(text.slice(s, e)) + '</span>'
+      : '<mark class="' + c + '"' + (f != null ? ' data-f="' + f + '"' : '') + '>' + esc(text.slice(s, e)) + '</mark>';
     pos = e;
   });
   return out + esc(text.slice(pos));
 }
-function pill(status) { const s = STATUS[status]; return '<span class="pill ' + s.cls + '">' + s.icon + esc(s.label) + '</span>'; }
+function chip(status) { const s = STATUS[status]; return '<span class="chip ' + status + '">' + s.icon + esc(s.label) + '</span>'; }
 function counts() {
   const c = { unreviewed: 0, supported: 0, fixed: 0, open: 0, cut: 0, notclaim: 0 };
   S.claims.forEach(x => { c[x.status]++; });
   return c;
 }
 
-/* ---------- step 1: setup ---------- */
+/* ---------- step 1: copy and sources ---------- */
 function viewSetup() {
   const ready = S.draft.trim() && S.sources.some(s => s.text.trim());
   return `
-  <div class="view-head">
-    <div><h2 id="stepTitle" tabindex="-1">Add the AI-assisted copy and its sources</h2>
-    <p class="lede">Paste the draft that an AI tool wrote or summarized, then the documents it was based on. Paper Trail splits the draft into claims and pairs each one with the source passages that should support it.</p></div>
-  </div>
-  <div class="stack">
-    <div class="examples">
-      <p><strong>New here?</strong> Try a short practice story about a city grant program. It has eight claims and the kinds of errors AI summaries make.</p>
-      <button class="btn btn-primary" type="button" data-act="demo">Load the practice story</button>
-      <button class="btn" type="button" data-act="demo-done">See a finished review</button>
+  <div class="setup">
+    <div class="setup-intro">
+      <h1 id="stepTitle" tabindex="-1">Check AI-assisted copy against its sources</h1>
+      <p>Paste the draft an AI tool wrote or summarized, and the documents it came from. Paper Trail splits the draft into claims and shows each one beside the source passage that should back it up.</p>
     </div>
-    <div class="setup-grid">
-      <div class="col">
-        <div class="field"><label for="slug">Story name</label><input class="input" id="slug" value="${esc(S.slug)}" placeholder="For example: School board budget brief"></div>
-        <div class="field"><label for="draft">AI-assisted draft</label>
-          <textarea id="draft" rows="12" placeholder="Paste the copy here.">${esc(S.draft)}</textarea></div>
-        <div class="panel ai-use">
-          <div class="field"><label for="aiTool">AI tool used</label><input class="input" id="aiTool" value="${esc(S.aiTool)}" placeholder="For example: ChatGPT"></div>
-          <div class="field"><label for="aiPurpose">It was used to</label>
-            <select class="input" id="aiPurpose">${PURPOSES.map(p => `<option${p === S.aiPurpose ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-        </div>
+    <section class="practice" aria-label="Practice story">
+      <span class="eyebrow">Practice</span>
+      <p>A city grant story. A chatbot summarized two documents, and seven of its eight claims are off in ways that are easy to miss.</p>
+      <div class="actions">
+        <button class="btn" type="button" data-act="demo">Open the practice story</button>
+        <button class="btn alt" type="button" data-act="demo-done">See a finished review</button>
       </div>
-      <div class="col">
-        <div class="label">Sources</div>
+    </section>
+    <div class="setup-grid">
+      <section class="sheet manuscript" aria-label="AI-assisted draft">
+        <div class="slug-row"><label class="eyebrow" for="slug">Slug</label><input id="slug" value="${esc(S.slug)}" placeholder="School board budget"></div>
+        <label class="sr-only" for="draft">AI-assisted draft</label>
+        <textarea id="draft" placeholder="Paste the AI-assisted draft here.">${esc(S.draft)}</textarea>
+        <p class="madlib">This draft was
+          <label class="sr-only" for="aiPurpose">How AI was used</label><select id="aiPurpose">${PURPOSES.map(p => `<option value="${esc(p.v)}"${p.v === S.aiPurpose ? ' selected' : ''}>${esc(p.l)}</option>`).join('')}</select>
+          using <label class="sr-only" for="aiTool">AI tool</label><input id="aiTool" value="${esc(S.aiTool)}" placeholder="ChatGPT">.</p>
+      </section>
+      <section class="sources" aria-label="Sources">
         ${S.sources.map((s, i) => `
-        <div class="panel source-card" data-src="${s.id}">
-          <div class="row">
+        <div class="sheet src-sheet" data-src="${s.id}">
+          <div class="src-head">
+            <span class="eyebrow">Source ${i + 1}</span>
             <label class="sr-only" for="st-${s.id}">Source ${i + 1} name</label>
-            <input class="input" id="st-${s.id}" data-field="title" value="${esc(s.title)}" placeholder="Source ${i + 1}: name and date">
+            <input id="st-${s.id}" data-field="title" value="${esc(s.title)}" placeholder="Name and date, e.g. Council minutes, March 2">
             ${S.sources.length > 1 ? `<button class="btn btn-quiet btn-sm" type="button" data-act="rm-src" data-id="${s.id}" aria-label="Remove source ${i + 1}">Remove</button>` : ''}
           </div>
           <label class="sr-only" for="sx-${s.id}">Source ${i + 1} text</label>
-          <textarea id="sx-${s.id}" data-field="text" rows="7" placeholder="Paste the source text: a news release, minutes, a report.">${esc(s.text)}</textarea>
+          <textarea id="sx-${s.id}" data-field="text" placeholder="Paste the source text: a news release, minutes, a report.">${esc(s.text)}</textarea>
         </div>`).join('')}
-        <div class="actions">
-          <button class="btn" type="button" data-act="add-src">Add another source</button>
-          <label class="btn btn-quiet" for="srcFile">Add a .txt file</label>
+        <div class="src-tools">
+          <button class="btn btn-sm" type="button" data-act="add-src">Add a source</button>
+          <label class="btn btn-quiet btn-sm" for="srcFile">Add a .txt file</label>
           <input type="file" id="srcFile" accept=".txt,.md,text/plain" hidden>
         </div>
-      </div>
+      </section>
     </div>
-    <div class="actions">
-      <button class="btn btn-primary" type="button" data-act="analyze" ${ready ? '' : 'disabled'}>Find claims</button>
-      <span class="privacy">${ICON.lock}<span>Everything stays in this browser tab. Nothing you paste is uploaded or sent to an AI service.</span></span>
+    <div class="go-row">
+      <button class="btn btn-primary" type="button" data-act="analyze" ${ready ? '' : 'disabled'}>Find the claims ${ICON.arrow}</button>
+      <span class="privacy">${ICON.lock}<span>What you paste stays in this browser tab. Nothing is uploaded or sent to an AI service.</span></span>
+      ${S.draft.trim() || S.claims.length ? '<button class="btn btn-quiet btn-sm" type="button" data-act="fresh">Clear and start over</button>' : ''}
     </div>
   </div>`;
 }
@@ -927,11 +1066,11 @@ function bindSetup() {
     if (t.id === 'slug') S.slug = t.value;
     else if (t.id === 'draft') S.draft = t.value;
     else if (t.id === 'aiTool') S.aiTool = t.value;
-    else if (t.id === 'aiPurpose') S.aiPurpose = t.value;
     else if (t.dataset.field) {
       const src = S.sources.find(s => s.id === t.closest('[data-src]').dataset.src);
       if (src) src[t.dataset.field] = t.value;
     }
+    else return;
     refreshReady(); save();
   });
   main.addEventListener('change', e => {
@@ -950,113 +1089,156 @@ function bindSetup() {
     }
   });
 }
-/* Step 2: check claims one at a time. */
-function flagSummary(r) {
-  const strong = r.flags.filter(f => f.sev === 'strong').length, soft = r.flags.length - strong;
-  if (strong) return '<span class="pill fl-strong">' + ICON.flag + strong + (soft ? '+' + soft : '') + '</span>';
-  if (soft) return '<span class="pill fl-soft">' + soft + ' careful</span>';
-  return '<span class="pill st-unreviewed">No flags</span>';
-}
+/* Step 2: check. The whole draft is a live proof; one claim at a time is checked beside its source. */
+function strongCount(r) { return r.flags.filter(f => f.sev === 'strong').length; }
 
 function viewReview() {
-  if (!S.claims.length) return '<div class="panel empty">No claims yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
+  if (!S.claims.length) return '<div class="sheet empty">No claims yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
   ui.claim = Math.min(ui.claim, S.claims.length - 1);
+  const results = S.claims.map(c => result(c));
   const c = counts(), total = S.claims.length, done = total - c.unreviewed;
-  const seg = (n, color) => n ? `<i style="width:${(100 * n / total).toFixed(2)}%;background:var(${color})"></i>` : '';
-  const list = S.claims.map((cl, i) => ({ cl, i })).filter(({ cl }) =>
-    ui.filter === 'all' || (ui.filter === 'todo' && cl.status === 'unreviewed') || (ui.filter === 'open' && cl.status === 'open'));
   return `
-  ${S.practice ? `<div class="examples" style="margin-bottom:16px"><p><strong>Practice story.</strong> Millbrook and its grant program are fictional. Try the decisions below, then open Export to see what the newsroom keeps.</p><button class="btn" type="button" data-act="fresh">Start with your own copy</button></div>` : ''}
-  <div class="panel summary" aria-label="Progress">
-    <strong>${done} of ${total} checked</strong>
-    <div class="meter" role="img" aria-label="${done} of ${total} claims have a decision">${seg(c.supported, '--ok')}${seg(c.fixed, '--pencil')}${seg(c.open, '--open')}${seg(c.cut + c.notclaim, '--cut')}</div>
-    <div class="counts"><span><b>${c.supported}</b> supported</span><span><b>${c.fixed}</b> fixed</span><span><b>${c.open}</b> need a check</span><span><b>${c.cut + c.notclaim}</b> cut or not claims</span></div>
-    <button class="btn btn-sm${done === total ? ' btn-primary' : ''}" type="button" data-step-go="export">Export</button>
+  <div class="strip-bar">
+    <div class="strip" role="group" aria-label="Claims">
+      ${S.claims.map((cl, i) => {
+        const st = cl.status === 'unreviewed' ? (strongCount(results[i]) ? 'flagged' : '') : cl.status;
+        return `<button type="button" class="sq ${st}" data-claim="${i}" aria-current="${i === ui.claim}" aria-label="Claim ${i + 1}: ${esc(STATUS[cl.status].label)}${cl.status === 'unreviewed' && results[i].flags.length ? ', ' + results[i].flags.length + ' queries' : ''}">${i + 1}</button>`;
+      }).join('')}
+    </div>
+    <span class="strip-count"><b>${done}</b> of ${total} checked${c.open ? ` · <b>${c.open}</b> ${c.open === 1 ? 'needs' : 'need'} a check` : ''}</span>
+    <button class="btn btn-sm${done === total ? ' btn-primary' : ''}" type="button" data-step-go="export">Export ${ICON.arrow}</button>
   </div>
   <div class="review-grid">
-    <nav class="panel galley" aria-label="Claims">
-      <div class="galley-filter" role="group" aria-label="Show">
-        ${[['all', 'All'], ['todo', 'Not checked'], ['open', 'Need a check']].map(([k, l]) => `<button class="btn btn-sm${ui.filter === k ? ' btn-primary' : ' btn-quiet'}" type="button" data-filter="${k}" aria-pressed="${ui.filter === k}">${l}</button>`).join('')}
-      </div>
-      <ol>${list.map(({ cl, i }) => `<li><button type="button" data-claim="${i}" aria-current="${i === ui.claim}">
-        <span class="num">${i + 1}</span><span class="txt">${esc(cl.text || cl.original)}</span>
-        ${cl.status === 'unreviewed' ? flagSummary(result(cl)) : pill(cl.status)}</button></li>`).join('') || '<li class="hint" style="padding:8px">Nothing here.</li>'}</ol>
-    </nav>
-    ${viewClaim(S.claims[ui.claim], ui.claim)}
+    ${viewProof(results)}
+    ${viewClaim(S.claims[ui.claim], ui.claim, results[ui.claim])}
   </div>`;
 }
 
-function viewClaim(c, i) {
-  const r = result(c);
+function viewProof(results) {
+  const paras = [];
+  S.claims.forEach((c, i) => {
+    const r = results[i], st = c.status;
+    const num = st !== 'unreviewed' ? st : strongCount(r) ? 'flagged' : r.flags.length ? 'soft' : '';
+    const body = st === 'unreviewed' ? marked(c.text, r.claimMarks) : esc(st === 'cut' ? c.original : c.text);
+    const html = `<span class="sent${st !== 'unreviewed' ? ' s-' + st : ''}${i === ui.claim ? ' on' : ''}" role="button" tabindex="0" data-claim="${i}">`
+      + `<span class="cnum ${num}${ui.pop === i ? ' pop' : ''}" aria-hidden="true">${i + 1}</span><span class="sr-only">Claim ${i + 1}, ${esc(STATUS[st].label)}: </span>${body}</span>`;
+    (paras[c.para || 0] = paras[c.para || 0] || []).push(html);
+  });
+  return `
+  <section class="sheet proof-sheet" aria-label="The draft">
+    <div class="proof-head"><span class="slug">${esc(S.slug || 'Untitled draft')}</span><span class="eyebrow">AI-assisted draft</span></div>
+    <div class="article">${paras.filter(Boolean).map(p => '<p>' + p.join(' ') + '</p>').join('')}</div>
+    <div class="legend" aria-hidden="true">
+      <span><mark class="m-strong">wavy red</mark> likely overstated or wrong</span>
+      <span><mark class="m-soft">highlighter</mark> the source is more careful</span>
+    </div>
+  </section>`;
+}
+
+function viewCoach() {
+  if (!S.practice) return '';
+  try { if (localStorage.getItem(COACH_KEY) === 'off') return ''; } catch (e) { /* show it */ }
+  const done = S.claims.filter(c => c.status !== 'unreviewed').length, total = S.claims.length;
+  const [n, body] = done === 0
+    ? [1, '<strong>Start with claim 1.</strong> The draft says “all.” The source says “eligible,” “may” and “up to.” Point at a query to see the words it means, then choose <strong>Fix wording</strong>.']
+    : done < total
+      ? [2, '<strong>Keep going.</strong> Move with the numbered squares, or J and K. Claim 7 has no source at all, so try <strong>Needs a check</strong> on it.']
+      : [3, '<strong>Every claim has a decision.</strong> Open <strong>Export</strong> to see the corrected copy, the open check and the record your newsroom keeps.'];
+  return `<div class="coach" role="note">
+    <span class="step">${n}/3</span><p>${body}</p>
+    <button class="btn btn-quiet btn-sm" type="button" data-act="coach-off">Hide tips</button>
+  </div>`;
+}
+
+function viewClips(r) {
+  const groups = PT.context(IDX, r.evidence, ui.whole);
+  if (!groups.length) return '<p class="hint">No source passage selected.</p>';
+  return groups.map(g => {
+    let prev = null;
+    const lines = g.rows.map(row => {
+      const gap = prev != null && row.n - prev > 1 ? '<div class="line ctx"><span class="gut">…</span><span class="txt"></span></div>' : '';
+      prev = row.n;
+      return gap + `<div class="line ${row.ev ? 'ev' : 'ctx'}"><span class="gut">${row.n}</span><span class="txt">${row.ev ? marked(row.text, r.evMarks.get(row.id)) : esc(row.text)}</span></div>`;
+    }).join('');
+    const which = g.rows.filter(x => x.ev).map(x => x.n);
+    return `<div class="clip">
+      <div class="clip-head"><span class="eyebrow">${esc(g.title)}</span><span class="eyebrow">${which.length === 1 ? 'Sentence ' + which[0] : 'Sentences ' + which.join(', ')} of ${g.total}</span></div>
+      <div class="clip-body">${lines}</div>
+    </div>`;
+  }).join('');
+}
+
+function viewClaim(c, i, r) {
   const total = S.claims.length;
-  const ev = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
   const decided = c.status !== 'unreviewed';
   const press = s => `aria-pressed="${c.status === s}"`;
   return `
-  <article class="panel claim" aria-labelledby="claimTitle">
+  <article class="sheet detail" aria-labelledby="claimTitle">
     <div class="claim-head">
-      <h2 id="claimTitle" tabindex="-1">Claim ${i + 1} of ${total}</h2>
-      ${pill(c.status)}
+      <h2 id="claimTitle" tabindex="-1">Claim ${i + 1} <span class="eyebrow">of ${total}</span></h2>
+      ${chip(c.status)}
+      <div class="nav">
+        <button class="btn btn-quiet btn-sm" type="button" data-act="prev" ${i === 0 ? 'disabled' : ''} aria-label="Previous claim">${ICON.prev}</button>
+        <button class="btn btn-quiet btn-sm" type="button" data-act="next" ${i === total - 1 ? 'disabled' : ''} aria-label="Next claim">${ICON.next}</button>
+      </div>
     </div>
-    <div class="pair">
-      <section class="says draft">
-        <h3>Draft says</h3>
-        <p class="copy">${c.status === 'cut' ? '<del>' + esc(c.original) + '</del>' : marked(c.text, r.claimMarks)}</p>
-        ${c.text !== c.original && c.status !== 'cut' ? `<p class="hint">Originally: ${esc(c.original)}</p>` : ''}
-      </section>
-      <section class="says source">
-        <h3>Source says</h3>
-        ${r.weak && ev.length ? '<p class="weak">Weak match. These share only a few words with the claim.</p>' : ''}
-        ${ev.map(s => `<div class="passage"><div class="src-title">${esc(s.title)}</div><p class="copy small">${marked(s.text, r.evMarks.get(s.id) || [])}</p></div>`).join('') || '<p class="hint">No passage selected.</p>'}
-        <div><button class="btn btn-quiet btn-sm" type="button" data-act="picker" aria-expanded="${ui.picker}">${ui.picker ? 'Close passage list' : 'Choose a different passage'}</button></div>
-      </section>
-    </div>
-    ${ui.picker ? viewPicker(c, r) : ''}
-    <section aria-labelledby="flagsTitle" style="display:grid;gap:10px">
-      <h3 id="flagsTitle">What to check</h3>
-      <ul class="flags">${r.flags.length ? r.flags.map(f => `<li>
-        <span class="pill ${f.sev === 'strong' ? 'fl-strong' : 'fl-soft'}">${f.sev === 'strong' ? ICON.flag + 'Check' : 'Careful'}</span>
-        <div><p><strong>${esc(f.title)}</strong></p><p class="why">${esc(f.why)}</p></div></li>`).join('')
-        : '<li class="none"><p>No differences found. Read both and confirm the source supports the claim.</p></li>'}</ul>
+    ${viewCoach()}
+    <section class="says" aria-label="The draft says">
+      <span class="eyebrow">The draft says</span>
+      <p class="draft-text">${c.status === 'cut' ? '<del>' + esc(c.original) + '</del>' : marked(c.text, r.claimMarks)}</p>
+      ${c.text !== c.original && c.status !== 'cut' ? `<p class="was">Was: <del>${esc(c.original)}</del></p>` : ''}
+    </section>
+    <section class="says" aria-label="The source says">
+      <span class="eyebrow">The source says</span>
+      ${r.weak && r.evidence.length ? '<p class="weak">Weak match. This passage shares only a few words with the claim.</p>' : ''}
+      ${viewClips(r)}
+      <div class="clip-actions">
+        ${r.evidence.length ? `<button class="btn btn-quiet btn-sm" type="button" data-act="whole">${ui.whole ? 'Show only the matched passage' : 'Show the whole source'}</button>` : ''}
+        <button class="btn btn-quiet btn-sm" type="button" data-act="picker" aria-expanded="${ui.picker}">${ui.picker ? 'Close the passage list' : 'Pick a different passage'}</button>
+      </div>
+      ${ui.picker ? viewPicker(r) : ''}
+    </section>
+    <section aria-label="Queries">
+      <span class="eyebrow">Queries</span>
+      <ol class="queries" style="margin-top:8px">${r.flags.length ? r.flags.map((f, k) => `
+        <li class="q q-${f.sev}" data-f="${f.id}" tabindex="0">
+          <span class="q-id">Q${k + 1}</span>
+          <div><p class="q-title">${esc(f.title)}</p><p class="q-why">${esc(f.why)}</p></div>
+        </li>`).join('')
+        : '<li class="q-none">No differences found. Read both, and confirm the source backs the claim.</li>'}</ol>
     </section>
     <section class="decide" aria-label="Decision">
-      <div class="decide-row">
-        <button class="btn btn-ok" type="button" data-act="supported" ${press('supported')}>${ICON.check}Supported <kbd>S</kbd></button>
-        <button class="btn btn-fix" type="button" data-act="fix" ${press('fixed')}>${ICON.pencil}Fix wording <kbd>F</kbd></button>
-        <button class="btn btn-open" type="button" data-act="open" ${press('open')}>${ICON.ask}Needs a check <kbd>C</kbd></button>
-        <button class="btn btn-cut" type="button" data-act="notclaim" ${press('notclaim')}>${ICON.minus}Not a claim <kbd>N</kbd></button>
-      </div>
-      ${ui.mode === 'fix' ? viewFix(c, r, ev) : ''}
-      ${ui.mode === 'open' ? viewTask(c, r) : ''}
-      ${decided && !ui.mode ? `<p class="decided-note">${esc(STATUS[c.status].label)}${c.by ? ' by ' + esc(c.by) : ''}${c.at ? ', ' + new Date(c.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}.${c.task ? ' Check: ' + esc(c.task.what) + (c.task.who ? ' (' + esc(c.task.who) + ')' : '') + '.' : ''} <button class="btn btn-quiet btn-sm" type="button" data-act="clear">Clear decision</button></p>` : ''}
-      <div class="field"><label for="note">Note for the record (optional)</label><input class="input" id="note" value="${esc(c.note)}" placeholder="For example: confirmed by phone with the city clerk"></div>
+      <button class="dbtn ok" type="button" data-act="supported" ${press('supported')}><span class="row">${ICON.check}Supported</span><small><kbd>S</kbd>The source backs it</small></button>
+      <button class="dbtn fix" type="button" data-act="fix" ${press('fixed')}><span class="row">${ICON.pencil}Fix wording</span><small><kbd>F</kbd>Edit to match</small></button>
+      <button class="dbtn open" type="button" data-act="open" ${press('open')}><span class="row">${ICON.ask}Needs a check</span><small><kbd>C</kbd>Assign a follow-up</small></button>
+      <button class="dbtn not" type="button" data-act="notclaim" ${press('notclaim')}><span class="row">${ICON.minus}Not a claim</span><small><kbd>N</kbd>Opinion or transition</small></button>
     </section>
-    <div class="nav-row">
-      <button class="btn" type="button" data-act="prev" ${i === 0 ? 'disabled' : ''}>Previous</button>
-      <button class="btn" type="button" data-act="next" ${i === total - 1 ? 'disabled' : ''}>Next claim</button>
-    </div>
+    ${ui.mode === 'fix' ? viewFix(c, r) : ''}
+    ${ui.mode === 'open' ? viewTask(c, r) : ''}
+    ${decided && !ui.mode ? `<p class="decided-note">${chip(c.status)}<span>${c.by ? 'by ' + esc(c.by) : 'No name given'}${c.at ? ', ' + new Date(c.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}${c.task ? '. Check: ' + esc(c.task.what) + (c.task.who ? ' (' + esc(c.task.who) + ')' : '') : ''}</span><button class="btn btn-quiet btn-sm" type="button" data-act="clear">Clear decision</button></p>` : ''}
+    <div class="field note-field"><label for="note">Note for the record</label><input class="input" id="note" value="${esc(c.note)}" placeholder="Optional. For example: confirmed by phone with the city clerk"></div>
   </article>`;
 }
 
-function viewFix(c, r, ev) {
+function viewFix(c, r) {
   return `<div class="editor">
     <label class="label" for="fixText">Corrected wording</label>
     <textarea id="fixText" rows="3">${esc(c.text)}</textarea>
-    <p class="hint" id="fixCheck" aria-live="polite">${recheckText(c.text, c)}</p>
+    ${recheckLine(c.text, c)}
     <div class="actions">
-      <button class="btn btn-primary" type="button" data-act="save-fix">Save fix</button>
-      ${ev.length ? '<button class="btn" type="button" data-act="use-source">Start from the source wording</button>' : ''}
+      <button class="btn btn-primary" type="button" data-act="save-fix">Save the fix</button>
+      ${r.evidence.length ? '<button class="btn" type="button" data-act="use-source">Start from the source wording</button>' : ''}
       <button class="btn btn-quiet" type="button" data-act="cut">Cut this sentence</button>
       <button class="btn btn-quiet" type="button" data-act="cancel">Cancel</button>
     </div>
   </div>`;
 }
 
-function recheckText(text, c) {
-  if (!text.trim()) return 'Empty. Saving will cut the sentence.';
+function recheckLine(text, c) {
+  if (!text.trim()) return '<p class="recheck" id="fixCheck" aria-live="polite">Empty. Saving will cut the sentence.</p>';
   const r = PT.analyze(text, IDX, c.evidence || PT.analyze(c.text, IDX, c.evidence).evidence);
-  if (!r.flags.length) return 'No differences left against the source.';
-  return r.flags.length + (r.flags.length === 1 ? ' difference left: ' : ' differences left: ') + r.flags.map(f => f.title).join(' ');
+  if (!r.flags.length) return `<p class="recheck clean" id="fixCheck" aria-live="polite">${ICON.check.replace('<svg', '<svg width="14" height="14"')}No differences left against the source.</p>`;
+  return `<p class="recheck" id="fixCheck" aria-live="polite">${r.flags.length} ${r.flags.length === 1 ? 'difference' : 'differences'} left: ${esc(r.flags.map(f => f.title).join(' '))}</p>`;
 }
 
 function viewTask(c, r) {
@@ -1071,24 +1253,24 @@ function viewTask(c, r) {
       <div class="field"><label for="tDue">By when?</label><input class="input" id="tDue" value="${esc(t.due || 'Before publishing')}"></div>
     </div>
     <div class="checks">
-      <label><input type="checkbox" id="tHold" ${t.hold === false ? '' : 'checked'}> Hold publication until this is resolved</label>
+      <label><input type="checkbox" id="tHold" ${t.hold === false ? '' : 'checked'}> Hold publication until it's resolved</label>
       <label><input type="checkbox" id="tSecond" ${second ? 'checked' : ''}> Needs a second editor (quotes, names, allegations)</label>
     </div>
     <div class="actions">
-      <button class="btn btn-primary" type="button" data-act="save-task">Save check</button>
+      <button class="btn btn-primary" type="button" data-act="save-task">Save the check</button>
       <button class="btn btn-quiet" type="button" data-act="cancel">Cancel</button>
     </div>
   </div>`;
 }
 
-function viewPicker(c, r) {
+function viewPicker(r) {
   const chosen = new Set(r.evidence);
   return `<div class="picker">
-    <label class="label" for="pickSearch">Pick the passages that support this claim</label>
+    <label class="label" for="pickSearch">Pick the passages that back this claim</label>
     <input class="input" id="pickSearch" placeholder="Filter source sentences" autocomplete="off">
     <ul id="pickList">${IDX.sents.map(s => `<li data-text="${esc(s.text.toLowerCase())}"><label><input type="checkbox" value="${esc(s.id)}" ${chosen.has(s.id) ? 'checked' : ''}><span>${esc(s.text)}<small>${esc(s.title)}</small></span></label></li>`).join('')}</ul>
     <div class="actions">
-      <button class="btn btn-primary btn-sm" type="button" data-act="pick-apply">Use selected passages</button>
+      <button class="btn btn-primary btn-sm" type="button" data-act="pick-apply">Use these passages</button>
       <button class="btn btn-quiet btn-sm" type="button" data-act="pick-auto">Go back to the automatic match</button>
     </div>
   </div>`;
@@ -1102,22 +1284,28 @@ function nextUnreviewed(from) {
   return Math.min(from + 1, S.claims.length - 1);
 }
 
+function select(i) {
+  ui.claim = Math.max(0, Math.min(S.claims.length - 1, i));
+  ui.mode = null; ui.picker = false; ui.whole = false;
+  render('claim');
+}
+
 let nudged = false;
 function decide(status, extra) {
   const i = ui.claim, c = S.claims[i];
   Object.assign(c, { status, by: reviewer(), at: new Date().toISOString() }, extra || {});
-  if (status !== 'open') c.task = status === 'open' ? c.task : null;
-  ui.mode = null; ui.picker = false;
+  if (status !== 'open') c.task = null;
+  ui.mode = null; ui.picker = false; ui.whole = false; ui.pop = i;
   save();
-  const label = STATUS[status].label.toLowerCase();
   const allDone = S.claims.every(x => x.status !== 'unreviewed');
   ui.claim = allDone ? i : nextUnreviewed(i);
   render('claim');
+  ui.pop = -1;
   if (!reviewer() && !nudged) { nudged = true; toast('Add your name at the top so the record shows who checked.'); }
-  else say('Claim ' + (i + 1) + ' marked ' + label + '.' + (allDone ? ' Every claim has a decision.' : ''));
+  else say('Claim ' + (i + 1) + ' marked ' + STATUS[status].label.toLowerCase() + '.' + (allDone ? ' Every claim has a decision.' : ''));
 }
 
-function reviewAction(act, el) {
+function reviewAction(act) {
   const c = S.claims[ui.claim];
   switch (act) {
     case 'supported': return decide('supported');
@@ -1127,10 +1315,12 @@ function reviewAction(act, el) {
     case 'cancel': ui.mode = null; render('claim'); return;
     case 'clear': Object.assign(c, { status: 'unreviewed', text: c.original, task: null, by: '', at: null }); save(); render('claim'); say('Decision cleared.'); return;
     case 'cut': return decide('cut');
+    case 'coach-off': try { localStorage.setItem(COACH_KEY, 'off'); } catch (e) { /* hide for this view only */ } S.practice = false; save(); render(); return;
+    case 'whole': ui.whole = !ui.whole; render(); return;
     case 'use-source': {
       const r = result(c);
       const ta = $('#fixText'); ta.value = r.evidence.map(id => IDX.byId.get(id).text).join(' ');
-      $('#fixCheck').textContent = recheckText(ta.value, c); ta.focus(); return;
+      $('#fixCheck').outerHTML = recheckLine(ta.value, c); ta.focus(); return;
     }
     case 'save-fix': {
       const v = $('#fixText').value.trim();
@@ -1148,8 +1338,8 @@ function reviewAction(act, el) {
       c.evidence = ids; ui.picker = false; save(); render('claim'); say(ids.length ? 'Passages updated.' : 'No passage selected.'); return;
     }
     case 'pick-auto': c.evidence = null; ui.picker = false; save(); render('claim'); say('Back to the automatic match.'); return;
-    case 'prev': if (ui.claim > 0) { ui.claim--; ui.mode = null; ui.picker = false; render('claim'); } return;
-    case 'next': if (ui.claim < S.claims.length - 1) { ui.claim++; ui.mode = null; ui.picker = false; render('claim'); } return;
+    case 'prev': if (ui.claim > 0) select(ui.claim - 1); return;
+    case 'next': if (ui.claim < S.claims.length - 1) select(ui.claim + 1); return;
   }
 }
 /* Step 3: what the newsroom keeps. */
@@ -1191,73 +1381,81 @@ function disclosureDraft() {
   return `${tool.charAt(0).toUpperCase() + tool.slice(1)} was used to ${S.aiPurpose} for this story. ${who} checked ${checked === factual ? 'each of its ' + factual : checked + ' of its ' + factual} factual statements against ${srcs.length === 1 ? 'the source document' : 'the ' + srcs.length + ' source documents'} and corrected ${corrected} before publication.`;
 }
 
+function stamp() {
+  const c = counts(), total = S.claims.length, opens = openChecks();
+  const holds = opens.filter(x => x.c.task && x.c.task.hold).length;
+  const who = checkers().join(', ');
+  const day = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  if (c.unreviewed) return `<div class="stamp pending" role="img" aria-label="Not finished: ${c.unreviewed} claims not checked"><span class="big">Unchecked</span><span class="small">${total - c.unreviewed} of ${total} claims done</span></div>`;
+  if (holds) return `<div class="stamp hold${ui.thunk ? ' thunk' : ''}" role="img" aria-label="On hold: ${holds} open check"><span class="big">Hold</span><span class="small">${holds} open ${holds === 1 ? 'check' : 'checks'}</span><span class="small">${who ? esc(who) + ' · ' : ''}${day}</span></div>`;
+  return `<div class="stamp ok${ui.thunk ? ' thunk' : ''}" role="img" aria-label="Checked, ready to publish"><span class="big">Checked</span><span class="small">${total} of ${total} claims</span><span class="small">${who ? esc(who) + ' · ' : ''}${day}</span></div>`;
+}
+
 function viewExport() {
-  if (!S.claims.length) return '<div class="panel empty">Nothing to export yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
-  const c = counts(), opens = openChecks(), holds = opens.filter(x => x.c.task && x.c.task.hold);
-  const banner = c.unreviewed
-    ? `<div class="banner hold">${ICON.hold}<span>${c.unreviewed} ${c.unreviewed === 1 ? 'claim hasn’t' : 'claims haven’t'} been checked yet. <button class="btn btn-sm" type="button" data-step-go="review">Back to checking</button></span></div>`
-    : holds.length ? `<div class="banner hold">${ICON.hold}<span>${holds.length} open ${holds.length === 1 ? 'check is' : 'checks are'} holding publication.</span></div>`
-    : `<div class="banner clear">${ICON.check}<span>Every claim has a decision. Nothing is holding publication.</span></div>`;
+  if (!S.claims.length) return '<div class="sheet empty">Nothing to export yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
+  const c = counts(), opens = openChecks();
   const tab = ui.exportTab;
   const body = paragraphs(tab === 'changes' ? 'changes' : 'clean', ui.omitOpen).map(p => '<p>' + p.join(' ') + '</p>').join('');
   const disclosure = S.disclosureEdited ? S.disclosure : disclosureDraft();
-  return `
-  <div class="view-head">
-    <div><h2 id="stepTitle" tabindex="-1">${esc(S.slug || 'Reviewed copy')}</h2>
-    <p class="lede">The corrected copy, the checks still open, a note for readers and the claim-by-claim record. ${checkers().length ? 'Checked by ' + esc(checkers().join(', ')) + '.' : ''}</p></div>
-  </div>
-  <div class="stack">
-    ${banner}
-    <div class="export-grid">
-      <section class="panel out" aria-labelledby="copyTitle">
-        <div class="out-head"><h2 id="copyTitle">Reviewed copy</h2>
-          <div class="tabs" role="tablist" aria-label="Copy view">
-            <button type="button" role="tab" aria-selected="${tab === 'clean'}" data-tab="clean">Clean copy</button>
-            <button type="button" role="tab" aria-selected="${tab === 'changes'}" data-tab="changes">Tracked changes</button>
-          </div></div>
-        <div class="article" role="tabpanel">${body || '<p class="hint">Every sentence was cut.</p>'}</div>
-        <div class="actions">
-          <button class="btn" type="button" data-act="copy-clean">Copy clean copy</button>
-          ${opens.length ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="omitOpen" ${ui.omitOpen ? 'checked' : ''}> Leave out sentences with open checks</label>` : ''}
-        </div>
-      </section>
-      <div class="stack">
-        <section class="panel out" aria-labelledby="openTitle">
-          <div class="out-head"><h2 id="openTitle">Open checks (${opens.length})</h2>
-            ${opens.length ? '<button class="btn btn-sm" type="button" data-act="copy-checks">Copy as a checklist</button>' : ''}</div>
-          ${opens.length ? `<ul class="tasklist">${opens.map((x, k) => `<li>
-            <strong>${k + 1}. ${esc(x.c.task ? x.c.task.what : 'Check this claim.')}</strong>
-            <span class="meta">Claim ${x.i + 1}: “${esc(x.c.text)}”</span>
-            <span class="meta">${esc([x.c.task && x.c.task.who, x.c.task && x.c.task.due].filter(Boolean).join(' · ') || 'No owner yet')}${x.c.task && x.c.task.hold ? ' · Holds publication' : ''}${x.c.task && x.c.task.second ? ' · Second editor' : ''}</span></li>`).join('')}</ul>`
-          : '<p class="hint">None. Every claim is supported, fixed, cut or marked as not a claim.</p>'}
-        </section>
-        <section class="panel out" aria-labelledby="discTitle">
-          <div class="out-head"><h2 id="discTitle">Note for readers</h2><button class="btn btn-sm" type="button" data-act="copy-disc">Copy</button></div>
-          <label class="sr-only" for="disclosure">AI-use note for readers</label>
-          <textarea id="disclosure" rows="5">${esc(disclosure)}</textarea>
-          <p class="hint">A draft built from this review. Readers want to know what the AI did and how people checked it. Edit before publishing.${S.disclosureEdited ? ' <button class="btn btn-quiet btn-sm" type="button" data-act="disc-reset">Rebuild from the review</button>' : ''}</p>
-        </section>
-      </div>
+  const html = `
+  <div class="export-head">
+    <div>
+      <h1 id="stepTitle" tabindex="-1">${esc(S.slug || 'Reviewed copy')}</h1>
+      <p>${c.unreviewed ? `${c.unreviewed} ${c.unreviewed === 1 ? 'claim hasn’t' : 'claims haven’t'} been checked yet. <button class="btn btn-sm" type="button" data-step-go="review">Back to checking</button>`
+        : `Corrected copy, open checks, a note for readers and the claim-by-claim record.${checkers().length ? ' Checked by ' + esc(checkers().join(', ')) + '.' : ''}`}</p>
     </div>
-    <section class="panel out" aria-labelledby="logTitle">
-      <div class="out-head"><h2 id="logTitle">Review record</h2>
-        <div class="downloads">
-          <button class="btn btn-sm" type="button" data-act="copy-md">Copy record as text</button>
-          ${FRAMED ? '<button class="btn btn-sm" type="button" data-act="copy-csv">Copy as CSV</button>'
-            : '<button class="btn btn-sm" type="button" data-act="dl-md">Download .md</button><button class="btn btn-sm" type="button" data-act="dl-csv">Download .csv</button><button class="btn btn-sm" type="button" data-act="dl-json">Download review file</button>'}
-        </div></div>
-      <div class="log-wrap"><table class="log">
-        <thead><tr><th scope="col">#</th><th scope="col">Decision</th><th scope="col">Draft</th><th scope="col">Final</th><th scope="col">Source</th><th scope="col">Checked by</th></tr></thead>
-        <tbody>${S.claims.map((cl, i) => {
-          const r = result(cl);
-          const src = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
-          return `<tr><td>${i + 1}</td><td>${pill(cl.status)}${cl.task ? '<div class="hint">' + esc(cl.task.what) + '</div>' : ''}${cl.note ? '<div class="hint">Note: ' + esc(cl.note) + '</div>' : ''}</td>
-            <td class="c">${esc(cl.original)}</td><td class="c">${cl.status === 'cut' ? '<span class="hint">Cut</span>' : cl.text === cl.original ? '<span class="hint">Unchanged</span>' : esc(cl.text)}</td>
-            <td>${src.map(s => '<div><span class="hint">' + esc(s.title) + ':</span> ' + esc(s.text) + '</div>').join('') || '<span class="hint">None</span>'}</td>
-            <td>${esc(cl.by || '')}${cl.at ? '<div class="hint">' + new Date(cl.at).toLocaleDateString([], { dateStyle: 'medium' }) + '</div>' : ''}</td></tr>`;
-        }).join('')}</tbody></table></div>
+  </div>
+  <div class="export-grid">
+    <section class="sheet proof-out" aria-labelledby="copyTitle">
+      <div class="proof-head">
+        <span class="slug" id="copyTitle">${esc(S.slug || 'Untitled')} · Reviewed copy</span>
+        <div class="tabs" role="tablist" aria-label="Copy view">
+          <button type="button" role="tab" aria-selected="${tab === 'clean'}" data-tab="clean">Clean</button>
+          <button type="button" role="tab" aria-selected="${tab === 'changes'}" data-tab="changes">Tracked changes</button>
+        </div>
+      </div>
+      <div class="article" role="tabpanel">${body || '<p class="hint">Every sentence was cut.</p>'}</div>
+      <div class="actions">
+        <button class="btn" type="button" data-act="copy-clean">Copy clean copy</button>
+        ${opens.length ? `<label class="hint" style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="omitOpen" ${ui.omitOpen ? 'checked' : ''}> Leave out sentences with open checks</label>` : ''}
+      </div>
     </section>
-  </div>`;
+    <aside class="margin" aria-label="Status, open checks and note for readers">
+      ${stamp()}
+      ${opens.length ? `<ol class="mnotes" aria-label="Open checks">${opens.map((x, k) => `<li class="mnote">
+          <span class="eyebrow">Open check ${k + 1}${x.c.task && x.c.task.hold ? ' · holds publication' : ''}</span>
+          <strong>${esc(x.c.task ? x.c.task.what : 'Check this claim.')}</strong>
+          <span class="meta">Claim ${x.i + 1}: “${esc(x.c.text)}”</span>
+          <span class="meta">${esc([x.c.task && x.c.task.who, x.c.task && x.c.task.due].filter(Boolean).join(' · ') || 'No owner yet')}${x.c.task && x.c.task.second ? ' · second editor' : ''}</span></li>`).join('')}</ol>
+          <button class="btn btn-sm" type="button" data-act="copy-checks" style="justify-self:start">Copy as a checklist</button>` : ''}
+      <section class="sheet panel" aria-labelledby="discTitle">
+        <div class="panel-head"><h2 id="discTitle">Note for readers</h2><button class="btn btn-sm" type="button" data-act="copy-disc">Copy</button></div>
+        <label class="sr-only" for="disclosure">AI-use note for readers</label>
+        <textarea id="disclosure" rows="5">${esc(disclosure)}</textarea>
+        <p class="hint">Drafted from this review. Readers want to know what the AI did and how people checked it. Edit before publishing.${S.disclosureEdited ? ' <button class="btn btn-quiet btn-sm" type="button" data-act="disc-reset">Rebuild from the review</button>' : ''}</p>
+      </section>
+    </aside>
+  </div>
+  <div class="ledger-tools">
+    <h2>Review record</h2>
+    <div class="actions">
+      <button class="btn btn-sm" type="button" data-act="copy-md">Copy as text</button>
+      ${FRAMED ? '<button class="btn btn-sm" type="button" data-act="copy-csv">Copy as CSV</button>'
+        : '<button class="btn btn-sm" type="button" data-act="dl-md">Download .md</button><button class="btn btn-sm" type="button" data-act="dl-csv">Download .csv</button><button class="btn btn-sm" type="button" data-act="dl-json">Download review file</button>'}
+    </div>
+  </div>
+  <div class="ledger-wrap"><table class="ledger">
+    <thead><tr><th scope="col">#</th><th scope="col">Decision</th><th scope="col">Draft</th><th scope="col">Final</th><th scope="col">Source</th><th scope="col">Checked by</th></tr></thead>
+    <tbody>${S.claims.map((cl, i) => {
+      const r = result(cl);
+      const src = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
+      return `<tr><td class="n">${String(i + 1).padStart(2, '0')}</td><td>${chip(cl.status)}${cl.task ? '<div class="hint" style="margin-top:6px">' + esc(cl.task.what) + '</div>' : ''}${cl.note ? '<div class="hint" style="margin-top:6px">Note: ' + esc(cl.note) + '</div>' : ''}</td>
+        <td class="c">${esc(cl.original)}</td><td class="c">${cl.status === 'cut' ? '<span class="hint">Cut</span>' : cl.text === cl.original ? '<span class="hint">Unchanged</span>' : esc(cl.text)}</td>
+        <td>${src.map(s => '<div><span class="hint">' + esc(s.title) + ':</span> ' + esc(s.text) + '</div>').join('') || '<span class="hint">None</span>'}</td>
+        <td>${esc(cl.by || '')}${cl.at ? '<div class="hint">' + new Date(cl.at).toLocaleDateString([], { dateStyle: 'medium' }) + '</div>' : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  ui.thunk = false;
+  return html;
 }
 
 /* ---------- report formats ---------- */
@@ -1280,7 +1478,7 @@ function reportMarkdown() {
     if (c.status === 'cut') L.push('   - Final: cut');
     else if (c.text !== c.original) L.push('   - Final: ' + c.text);
     r.evidence.forEach(id => { const s = IDX.byId.get(id); L.push('   - Source (' + s.title + '): ' + s.text); });
-    if (c.status === 'unreviewed' && r.flags.length) L.push('   - Flags: ' + r.flags.map(f => f.title).join(' '));
+    if (c.status === 'unreviewed' && r.flags.length) L.push('   - Queries: ' + r.flags.map(f => f.title).join(' '));
     if (c.note) L.push('   - Note: ' + c.note);
   });
   L.push('', '## Note for readers (draft)', '', S.disclosureEdited ? S.disclosure : disclosureDraft(), '');
@@ -1334,9 +1532,15 @@ function render(focus) {
   if (el) {
     el.focus({ preventScroll: true });
     const r = el.getBoundingClientRect();
-    if (r.top < 70 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'start' });
+    if (r.top < 120 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'center' });
   }
   if (focus === 'step') window.scrollTo(0, 0);
+  // Keep the selected sentence in view inside the proof.
+  const on = $('.proof-sheet .sent.on');
+  if (on && focus === 'claim') {
+    const box = $('.proof-sheet').getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (r.top < box.top + 40 || r.bottom > box.bottom - 20) on.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 function sourcesSig() { return JSON.stringify(S.sources.map(s => s.text)); }
@@ -1344,7 +1548,7 @@ function stale() { return S.draft !== S.analyzedDraft || sourcesSig() !== S.sour
 
 async function runAnalyze() {
   if (S.claims.some(c => c.status !== 'unreviewed')) {
-    const ok = await ask('Find claims again?', 'Decisions stay on sentences you haven’t changed. Sentences you edited in the draft start over.', 'Find claims');
+    const ok = await ask('Find the claims again?', 'Decisions stay on sentences you haven’t changed. Sentences you edited in the draft start over.', 'Find claims');
     if (!ok) return;
   }
   const srcChanged = sourcesSig() !== S.sourcesSig;
@@ -1353,7 +1557,7 @@ async function runAnalyze() {
   S.practice = S.draft === DEMO.draft;
   S.step = 'review';
   ui.claim = Math.max(0, S.claims.findIndex(c => c.status === 'unreviewed'));
-  ui.mode = null; ui.picker = false; ui.filter = 'all';
+  ui.mode = null; ui.picker = false; ui.whole = false;
   save(); render('step');
   say(S.claims.length + (S.claims.length === 1 ? ' claim' : ' claims') + ' found.');
 }
@@ -1361,14 +1565,29 @@ async function runAnalyze() {
 async function go(step) {
   if (step === S.step) return;
   if (step !== 'setup' && S.step === 'setup' && S.claims.length && stale()) return runAnalyze();
+  if (step === 'export' && S.claims.every(c => c.status !== 'unreviewed')) ui.thunk = true;
   S.step = step; ui.mode = null; ui.picker = false;
   save(); render('step');
 }
 
 async function confirmReplace() {
   const busy = S.claims.some(c => c.status !== 'unreviewed') || (S.draft.trim() && S.draft !== DEMO.draft);
-  return !busy || ask('Replace your current review?', 'Loading the practice story replaces what is on screen. Save a review file first if you want to keep it.', 'Replace');
+  return !busy || ask('Replace your current review?', 'The practice story replaces what is on screen. Save a review file first if you want to keep it.', 'Replace');
 }
+
+/* Point at a query and the words it means light up in the draft and the source, and the other way round. */
+function light(id, on) {
+  if (id == null) return;
+  document.querySelectorAll(`.detail [data-f="${id}"], .sent.on mark[data-f="${id}"]`).forEach(el => el.classList.toggle('lit', on));
+}
+['mouseover', 'focusin'].forEach(ev => document.addEventListener(ev, e => {
+  const t = e.target.closest && e.target.closest('.detail [data-f], .sent.on mark[data-f]');
+  if (t) light(t.dataset.f, true);
+}));
+['mouseout', 'focusout'].forEach(ev => document.addEventListener(ev, e => {
+  const t = e.target.closest && e.target.closest('.detail [data-f], .sent.on mark[data-f]');
+  if (t) light(t.dataset.f, false);
+}));
 
 document.addEventListener('click', async e => {
   const t = e.target;
@@ -1377,9 +1596,7 @@ document.addEventListener('click', async e => {
   const goBtn = t.closest('[data-step-go]');
   if (goBtn) { go(goBtn.dataset.stepGo); return; }
   const claimBtn = t.closest('[data-claim]');
-  if (claimBtn) { ui.claim = +claimBtn.dataset.claim; ui.mode = null; ui.picker = false; render('claim'); return; }
-  const filterBtn = t.closest('[data-filter]');
-  if (filterBtn) { ui.filter = filterBtn.dataset.filter; render(); return; }
+  if (claimBtn && $('#main').contains(claimBtn)) { select(+claimBtn.dataset.claim); return; }
   const tabBtn = t.closest('[data-tab]');
   if (tabBtn) { ui.exportTab = tabBtn.dataset.tab; render(); return; }
   const a = t.closest('[data-act]');
@@ -1387,11 +1604,16 @@ document.addEventListener('click', async e => {
   const act = a.dataset.act;
   switch (act) {
     case 'demo': case 'demo-done':
-      if (await confirmReplace()) { loadDemo(act === 'demo-done'); render('step'); say(act === 'demo' ? 'Practice story loaded. 8 claims to check.' : 'Finished practice review loaded.'); }
+      if (await confirmReplace()) {
+        loadDemo(act === 'demo-done');
+        if (act === 'demo-done') ui.thunk = true;
+        render('step'); say(act === 'demo' ? 'Practice story open. Eight claims to check.' : 'A finished review of the practice story.');
+      }
       return;
     case 'fresh':
-      if (!S.claims.some(c => c.status !== 'unreviewed') || await ask('Start with your own copy?', 'This clears the practice story and its decisions.', 'Start')) {
-        S = blank(); IDX = null; ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false }; save(); render('step');
+      if (await ask('Clear everything and start over?', 'This removes the draft, the sources and every decision. Save a review file first if you want to keep it.', 'Clear')) {
+        S = blank(); IDX = null; ui = { claim: 0, mode: null, exportTab: 'clean', picker: false, whole: false, omitOpen: false, pop: -1, thunk: false };
+        save(); render('step');
       }
       return;
     case 'add-src':
@@ -1406,7 +1628,7 @@ document.addEventListener('click', async e => {
     }
     case 'analyze': return runAnalyze();
   }
-  if (S.step === 'review') return reviewAction(act, a);
+  if (S.step === 'review') return reviewAction(act);
   if (S.step === 'export') return exportAction(act);
 });
 
@@ -1414,7 +1636,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'reviewer') { try { localStorage.setItem(NAME_KEY, t.value); } catch (x) { /* name just isn't remembered */ } return; }
   if (t.id === 'note' && S.claims[ui.claim]) { S.claims[ui.claim].note = t.value; save(); return; }
-  if (t.id === 'fixText') { $('#fixCheck').textContent = recheckText(t.value, S.claims[ui.claim]); return; }
+  if (t.id === 'fixText') { $('#fixCheck').outerHTML = recheckLine(t.value, S.claims[ui.claim]); return; }
   if (t.id === 'pickSearch') {
     const q = t.value.trim().toLowerCase();
     document.querySelectorAll('#pickList li').forEach(li => { li.hidden = !!q && !li.dataset.text.includes(q); });
@@ -1441,7 +1663,10 @@ document.addEventListener('change', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (S.step !== 'review' || e.metaKey || e.ctrlKey || e.altKey || !$('#modal').hidden) return;
+  if (!$('#modal').hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+  const sent = e.target.closest && e.target.closest('.sent[data-claim]');
+  if (sent && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(+sent.dataset.claim); return; }
+  if (S.step !== 'review') return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
   const act = { s: 'supported', f: 'fix', c: 'open', n: 'notclaim', j: 'next', k: 'prev' }[e.key.toLowerCase()];
@@ -1461,7 +1686,7 @@ $('#openFile').addEventListener('click', () => $('#fileInput').click());
   const h = (location.hash || '').slice(1);
   const saved = load();
   if (h === 'practice') loadDemo(false);
-  else if (h === 'finished') loadDemo(true);
+  else if (h === 'finished') { loadDemo(true); ui.thunk = true; }
   else if (h === 'practice-setup') { loadDemo(false); S.step = 'setup'; }
   else if (saved && saved.v === 1 && Array.isArray(saved.claims) && Array.isArray(saved.sources)) S = saved;
   else loadDemo(false);

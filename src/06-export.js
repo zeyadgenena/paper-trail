@@ -37,73 +37,81 @@ function disclosureDraft() {
   return `${tool.charAt(0).toUpperCase() + tool.slice(1)} was used to ${S.aiPurpose} for this story. ${who} checked ${checked === factual ? 'each of its ' + factual : checked + ' of its ' + factual} factual statements against ${srcs.length === 1 ? 'the source document' : 'the ' + srcs.length + ' source documents'} and corrected ${corrected} before publication.`;
 }
 
+function stamp() {
+  const c = counts(), total = S.claims.length, opens = openChecks();
+  const holds = opens.filter(x => x.c.task && x.c.task.hold).length;
+  const who = checkers().join(', ');
+  const day = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  if (c.unreviewed) return `<div class="stamp pending" role="img" aria-label="Not finished: ${c.unreviewed} claims not checked"><span class="big">Unchecked</span><span class="small">${total - c.unreviewed} of ${total} claims done</span></div>`;
+  if (holds) return `<div class="stamp hold${ui.thunk ? ' thunk' : ''}" role="img" aria-label="On hold: ${holds} open check"><span class="big">Hold</span><span class="small">${holds} open ${holds === 1 ? 'check' : 'checks'}</span><span class="small">${who ? esc(who) + ' · ' : ''}${day}</span></div>`;
+  return `<div class="stamp ok${ui.thunk ? ' thunk' : ''}" role="img" aria-label="Checked, ready to publish"><span class="big">Checked</span><span class="small">${total} of ${total} claims</span><span class="small">${who ? esc(who) + ' · ' : ''}${day}</span></div>`;
+}
+
 function viewExport() {
-  if (!S.claims.length) return '<div class="panel empty">Nothing to export yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
-  const c = counts(), opens = openChecks(), holds = opens.filter(x => x.c.task && x.c.task.hold);
-  const banner = c.unreviewed
-    ? `<div class="banner hold">${ICON.hold}<span>${c.unreviewed} ${c.unreviewed === 1 ? 'claim hasn’t' : 'claims haven’t'} been checked yet. <button class="btn btn-sm" type="button" data-step-go="review">Back to checking</button></span></div>`
-    : holds.length ? `<div class="banner hold">${ICON.hold}<span>${holds.length} open ${holds.length === 1 ? 'check is' : 'checks are'} holding publication.</span></div>`
-    : `<div class="banner clear">${ICON.check}<span>Every claim has a decision. Nothing is holding publication.</span></div>`;
+  if (!S.claims.length) return '<div class="sheet empty">Nothing to export yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
+  const c = counts(), opens = openChecks();
   const tab = ui.exportTab;
   const body = paragraphs(tab === 'changes' ? 'changes' : 'clean', ui.omitOpen).map(p => '<p>' + p.join(' ') + '</p>').join('');
   const disclosure = S.disclosureEdited ? S.disclosure : disclosureDraft();
-  return `
-  <div class="view-head">
-    <div><h2 id="stepTitle" tabindex="-1">${esc(S.slug || 'Reviewed copy')}</h2>
-    <p class="lede">The corrected copy, the checks still open, a note for readers and the claim-by-claim record. ${checkers().length ? 'Checked by ' + esc(checkers().join(', ')) + '.' : ''}</p></div>
-  </div>
-  <div class="stack">
-    ${banner}
-    <div class="export-grid">
-      <section class="panel out" aria-labelledby="copyTitle">
-        <div class="out-head"><h2 id="copyTitle">Reviewed copy</h2>
-          <div class="tabs" role="tablist" aria-label="Copy view">
-            <button type="button" role="tab" aria-selected="${tab === 'clean'}" data-tab="clean">Clean copy</button>
-            <button type="button" role="tab" aria-selected="${tab === 'changes'}" data-tab="changes">Tracked changes</button>
-          </div></div>
-        <div class="article" role="tabpanel">${body || '<p class="hint">Every sentence was cut.</p>'}</div>
-        <div class="actions">
-          <button class="btn" type="button" data-act="copy-clean">Copy clean copy</button>
-          ${opens.length ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="omitOpen" ${ui.omitOpen ? 'checked' : ''}> Leave out sentences with open checks</label>` : ''}
-        </div>
-      </section>
-      <div class="stack">
-        <section class="panel out" aria-labelledby="openTitle">
-          <div class="out-head"><h2 id="openTitle">Open checks (${opens.length})</h2>
-            ${opens.length ? '<button class="btn btn-sm" type="button" data-act="copy-checks">Copy as a checklist</button>' : ''}</div>
-          ${opens.length ? `<ul class="tasklist">${opens.map((x, k) => `<li>
-            <strong>${k + 1}. ${esc(x.c.task ? x.c.task.what : 'Check this claim.')}</strong>
-            <span class="meta">Claim ${x.i + 1}: “${esc(x.c.text)}”</span>
-            <span class="meta">${esc([x.c.task && x.c.task.who, x.c.task && x.c.task.due].filter(Boolean).join(' · ') || 'No owner yet')}${x.c.task && x.c.task.hold ? ' · Holds publication' : ''}${x.c.task && x.c.task.second ? ' · Second editor' : ''}</span></li>`).join('')}</ul>`
-          : '<p class="hint">None. Every claim is supported, fixed, cut or marked as not a claim.</p>'}
-        </section>
-        <section class="panel out" aria-labelledby="discTitle">
-          <div class="out-head"><h2 id="discTitle">Note for readers</h2><button class="btn btn-sm" type="button" data-act="copy-disc">Copy</button></div>
-          <label class="sr-only" for="disclosure">AI-use note for readers</label>
-          <textarea id="disclosure" rows="5">${esc(disclosure)}</textarea>
-          <p class="hint">A draft built from this review. Readers want to know what the AI did and how people checked it. Edit before publishing.${S.disclosureEdited ? ' <button class="btn btn-quiet btn-sm" type="button" data-act="disc-reset">Rebuild from the review</button>' : ''}</p>
-        </section>
-      </div>
+  const html = `
+  <div class="export-head">
+    <div>
+      <h1 id="stepTitle" tabindex="-1">${esc(S.slug || 'Reviewed copy')}</h1>
+      <p>${c.unreviewed ? `${c.unreviewed} ${c.unreviewed === 1 ? 'claim hasn’t' : 'claims haven’t'} been checked yet. <button class="btn btn-sm" type="button" data-step-go="review">Back to checking</button>`
+        : `Corrected copy, open checks, a note for readers and the claim-by-claim record.${checkers().length ? ' Checked by ' + esc(checkers().join(', ')) + '.' : ''}`}</p>
     </div>
-    <section class="panel out" aria-labelledby="logTitle">
-      <div class="out-head"><h2 id="logTitle">Review record</h2>
-        <div class="downloads">
-          <button class="btn btn-sm" type="button" data-act="copy-md">Copy record as text</button>
-          ${FRAMED ? '<button class="btn btn-sm" type="button" data-act="copy-csv">Copy as CSV</button>'
-            : '<button class="btn btn-sm" type="button" data-act="dl-md">Download .md</button><button class="btn btn-sm" type="button" data-act="dl-csv">Download .csv</button><button class="btn btn-sm" type="button" data-act="dl-json">Download review file</button>'}
-        </div></div>
-      <div class="log-wrap"><table class="log">
-        <thead><tr><th scope="col">#</th><th scope="col">Decision</th><th scope="col">Draft</th><th scope="col">Final</th><th scope="col">Source</th><th scope="col">Checked by</th></tr></thead>
-        <tbody>${S.claims.map((cl, i) => {
-          const r = result(cl);
-          const src = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
-          return `<tr><td>${i + 1}</td><td>${pill(cl.status)}${cl.task ? '<div class="hint">' + esc(cl.task.what) + '</div>' : ''}${cl.note ? '<div class="hint">Note: ' + esc(cl.note) + '</div>' : ''}</td>
-            <td class="c">${esc(cl.original)}</td><td class="c">${cl.status === 'cut' ? '<span class="hint">Cut</span>' : cl.text === cl.original ? '<span class="hint">Unchanged</span>' : esc(cl.text)}</td>
-            <td>${src.map(s => '<div><span class="hint">' + esc(s.title) + ':</span> ' + esc(s.text) + '</div>').join('') || '<span class="hint">None</span>'}</td>
-            <td>${esc(cl.by || '')}${cl.at ? '<div class="hint">' + new Date(cl.at).toLocaleDateString([], { dateStyle: 'medium' }) + '</div>' : ''}</td></tr>`;
-        }).join('')}</tbody></table></div>
+  </div>
+  <div class="export-grid">
+    <section class="sheet proof-out" aria-labelledby="copyTitle">
+      <div class="proof-head">
+        <span class="slug" id="copyTitle">${esc(S.slug || 'Untitled')} · Reviewed copy</span>
+        <div class="tabs" role="tablist" aria-label="Copy view">
+          <button type="button" role="tab" aria-selected="${tab === 'clean'}" data-tab="clean">Clean</button>
+          <button type="button" role="tab" aria-selected="${tab === 'changes'}" data-tab="changes">Tracked changes</button>
+        </div>
+      </div>
+      <div class="article" role="tabpanel">${body || '<p class="hint">Every sentence was cut.</p>'}</div>
+      <div class="actions">
+        <button class="btn" type="button" data-act="copy-clean">Copy clean copy</button>
+        ${opens.length ? `<label class="hint" style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="omitOpen" ${ui.omitOpen ? 'checked' : ''}> Leave out sentences with open checks</label>` : ''}
+      </div>
     </section>
-  </div>`;
+    <aside class="margin" aria-label="Status, open checks and note for readers">
+      ${stamp()}
+      ${opens.length ? `<ol class="mnotes" aria-label="Open checks">${opens.map((x, k) => `<li class="mnote">
+          <span class="eyebrow">Open check ${k + 1}${x.c.task && x.c.task.hold ? ' · holds publication' : ''}</span>
+          <strong>${esc(x.c.task ? x.c.task.what : 'Check this claim.')}</strong>
+          <span class="meta">Claim ${x.i + 1}: “${esc(x.c.text)}”</span>
+          <span class="meta">${esc([x.c.task && x.c.task.who, x.c.task && x.c.task.due].filter(Boolean).join(' · ') || 'No owner yet')}${x.c.task && x.c.task.second ? ' · second editor' : ''}</span></li>`).join('')}</ol>
+          <button class="btn btn-sm" type="button" data-act="copy-checks" style="justify-self:start">Copy as a checklist</button>` : ''}
+      <section class="sheet panel" aria-labelledby="discTitle">
+        <div class="panel-head"><h2 id="discTitle">Note for readers</h2><button class="btn btn-sm" type="button" data-act="copy-disc">Copy</button></div>
+        <label class="sr-only" for="disclosure">AI-use note for readers</label>
+        <textarea id="disclosure" rows="5">${esc(disclosure)}</textarea>
+        <p class="hint">Drafted from this review. Readers want to know what the AI did and how people checked it. Edit before publishing.${S.disclosureEdited ? ' <button class="btn btn-quiet btn-sm" type="button" data-act="disc-reset">Rebuild from the review</button>' : ''}</p>
+      </section>
+    </aside>
+  </div>
+  <div class="ledger-tools">
+    <h2>Review record</h2>
+    <div class="actions">
+      <button class="btn btn-sm" type="button" data-act="copy-md">Copy as text</button>
+      ${FRAMED ? '<button class="btn btn-sm" type="button" data-act="copy-csv">Copy as CSV</button>'
+        : '<button class="btn btn-sm" type="button" data-act="dl-md">Download .md</button><button class="btn btn-sm" type="button" data-act="dl-csv">Download .csv</button><button class="btn btn-sm" type="button" data-act="dl-json">Download review file</button>'}
+    </div>
+  </div>
+  <div class="ledger-wrap"><table class="ledger">
+    <thead><tr><th scope="col">#</th><th scope="col">Decision</th><th scope="col">Draft</th><th scope="col">Final</th><th scope="col">Source</th><th scope="col">Checked by</th></tr></thead>
+    <tbody>${S.claims.map((cl, i) => {
+      const r = result(cl);
+      const src = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
+      return `<tr><td class="n">${String(i + 1).padStart(2, '0')}</td><td>${chip(cl.status)}${cl.task ? '<div class="hint" style="margin-top:6px">' + esc(cl.task.what) + '</div>' : ''}${cl.note ? '<div class="hint" style="margin-top:6px">Note: ' + esc(cl.note) + '</div>' : ''}</td>
+        <td class="c">${esc(cl.original)}</td><td class="c">${cl.status === 'cut' ? '<span class="hint">Cut</span>' : cl.text === cl.original ? '<span class="hint">Unchanged</span>' : esc(cl.text)}</td>
+        <td>${src.map(s => '<div><span class="hint">' + esc(s.title) + ':</span> ' + esc(s.text) + '</div>').join('') || '<span class="hint">None</span>'}</td>
+        <td>${esc(cl.by || '')}${cl.at ? '<div class="hint">' + new Date(cl.at).toLocaleDateString([], { dateStyle: 'medium' }) + '</div>' : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  ui.thunk = false;
+  return html;
 }
 
 /* ---------- report formats ---------- */
@@ -126,7 +134,7 @@ function reportMarkdown() {
     if (c.status === 'cut') L.push('   - Final: cut');
     else if (c.text !== c.original) L.push('   - Final: ' + c.text);
     r.evidence.forEach(id => { const s = IDX.byId.get(id); L.push('   - Source (' + s.title + '): ' + s.text); });
-    if (c.status === 'unreviewed' && r.flags.length) L.push('   - Flags: ' + r.flags.map(f => f.title).join(' '));
+    if (c.status === 'unreviewed' && r.flags.length) L.push('   - Queries: ' + r.flags.map(f => f.title).join(' '));
     if (c.note) L.push('   - Note: ' + c.note);
   });
   L.push('', '## Note for readers (draft)', '', S.disclosureEdited ? S.disclosure : disclosureDraft(), '');
