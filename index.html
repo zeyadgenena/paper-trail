@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper Trail</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Check AI-assisted copy against its sources, one claim at a time. Runs in your browser.">
+<style>
+/* Layout: a copy desk. A galley of claims on the left, draft and source side by side on the right, blue pencil for edits. */
+:root {
+  --bg: #f4f5f2;
+  --surface: #ffffff;
+  --sunk: #eceee9;
+  --ink: #16191d;
+  --muted: #586170;
+  --line: #d6d9d3;
+  --pencil: #1f5fbf;          /* the editor's blue pencil: links, focus, primary actions */
+  --pencil-ink: #ffffff;
+  --pencil-soft: #e4edfa;
+  --strong: #a8261b;          /* likely overstated or wrong */
+  --strong-bg: #fbe9e6;
+  --soft: #7d4e00;            /* source is more careful */
+  --soft-bg: #fbf0d6;
+  --ok: #1d6f42;
+  --ok-bg: #e2f2e8;
+  --open: #5d3a96;
+  --open-bg: #eee7f8;
+  --cut: #586170;
+  --cut-bg: #e9ebe7;
+  --shadow: 0 1px 2px rgba(22, 25, 29, .06), 0 4px 16px rgba(22, 25, 29, .06);
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-copy: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417; --surface: #1a1d21; --sunk: #202429; --ink: #e8eaed; --muted: #9ba4af; --line: #2e333a;
+    --pencil: #8db2f2; --pencil-ink: #0e1726; --pencil-soft: #1d2a3f;
+    --strong: #f2958b; --strong-bg: #3a1f1c; --soft: #f0c46e; --soft-bg: #362c16;
+    --ok: #82d2a5; --ok-bg: #17301f; --open: #c6aaf2; --open-bg: #2a2140; --cut: #9ba4af; --cut-bg: #262a30;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121417; --surface: #1a1d21; --sunk: #202429; --ink: #e8eaed; --muted: #9ba4af; --line: #2e333a;
+  --pencil: #8db2f2; --pencil-ink: #0e1726; --pencil-soft: #1d2a3f;
+  --strong: #f2958b; --strong-bg: #3a1f1c; --soft: #f0c46e; --soft-bg: #362c16;
+  --ok: #82d2a5; --ok-bg: #17301f; --open: #c6aaf2; --open-bg: #2a2140; --cut: #9ba4af; --cut-bg: #262a30;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+a { color: var(--pencil); }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--pencil); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding-block: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font: 600 20px/1.1 var(--font-copy); letter-spacing: -.01em; }
+.brand span { color: var(--muted); font-size: 13px; }
+.steps { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+.steps button {
+  border: 0; background: none; padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center;
+}
+.steps button .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-variant-numeric: tabular-nums; }
+.steps button[aria-current="step"] { color: var(--ink); background: var(--sunk); font-weight: 600; }
+.steps button[aria-current="step"] .n { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.steps button:disabled { opacity: .45; cursor: default; }
+.top-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.who { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.who input { width: 9.5em; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); font-size: 13px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; font-weight: 500; line-height: 1.2; text-decoration: none; color: var(--ink); }
+.btn:hover { border-color: var(--muted); }
+.btn-primary { background: var(--pencil); color: var(--pencil-ink); border-color: var(--pencil); }
+.btn-primary:hover { filter: brightness(1.06); border-color: var(--pencil); }
+.btn-quiet { border-color: transparent; background: none; color: var(--muted); }
+.btn-quiet:hover { color: var(--ink); border-color: var(--line); }
+.btn-sm { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+
+main { padding-block: 24px 64px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 { font: 600 22px/1.25 var(--font-copy); letter-spacing: -.01em; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.lede { color: var(--muted); max-width: 68ch; margin: 6px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.hint { font-size: 13px; color: var(--muted); }
+.view-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 18px; }
+
+/* Setup */
+.setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.field { display: grid; gap: 6px; }
+.field label, .label { font-weight: 600; font-size: 14px; }
+textarea, .input { width: 100%; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 12px; }
+textarea { font: 16px/1.55 var(--font-copy); resize: vertical; min-height: 120px; }
+textarea:focus, .input:focus { border-color: var(--pencil); outline: none; box-shadow: 0 0 0 3px var(--pencil-soft); }
+.col { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.source-card { padding: 12px; display: grid; gap: 8px; }
+.source-card .row { display: flex; gap: 8px; align-items: center; }
+.source-card .row .input { flex: 1; min-width: 0; font-weight: 600; }
+.ai-use { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+.privacy svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--ok); }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; background: var(--pencil-soft); border-radius: 8px; }
+.examples p { margin: 0; flex: 1 1 260px; font-size: 14px; }
+
+/* Review */
+.summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 14px; margin-bottom: 16px; }
+.meter { flex: 1 1 200px; height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.counts b { color: var(--ink); }
+.review-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+.galley { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); max-height: calc(100vh - 96px); overflow: auto; padding: 6px; }
+.galley ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.galley ol button {
+  width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: var(--r);
+  padding: 8px 10px; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: start;
+}
+.galley ol button:hover { background: var(--sunk); }
+.galley ol button[aria-current="true"] { background: var(--pencil-soft); border-color: var(--pencil); }
+.galley .num { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.galley .txt { font: 14px/1.4 var(--font-copy); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.galley-filter { display: flex; gap: 4px; padding: 4px 4px 8px; flex-wrap: wrap; }
+
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; line-height: 1.5; }
+.pill svg { width: 12px; height: 12px; }
+.st-unreviewed { background: var(--sunk); color: var(--muted); }
+.st-supported { background: var(--ok-bg); color: var(--ok); }
+.st-fixed { background: var(--pencil-soft); color: var(--pencil); }
+.st-open { background: var(--open-bg); color: var(--open); }
+.st-cut, .st-notclaim { background: var(--cut-bg); color: var(--cut); }
+.fl-strong { background: var(--strong-bg); color: var(--strong); }
+.fl-soft { background: var(--soft-bg); color: var(--soft); }
+
+.claim { padding: 20px; display: grid; gap: 18px; }
+.claim-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.claim-head h2 { font-size: 18px; }
+#claimTitle, #stepTitle { scroll-margin-top: 96px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.says { border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.says.draft { background: var(--sunk); }
+.says.source { border: 1px solid var(--line); }
+.copy { font: 18px/1.6 var(--font-copy); margin: 0; overflow-wrap: anywhere; }
+.copy.small { font-size: 16px; }
+.src-title { font-size: 12px; color: var(--muted); font-weight: 600; }
+.passage + .passage { border-top: 1px dashed var(--line); padding-top: 8px; }
+mark { color: inherit; border-radius: 3px; padding: 0 2px; }
+mark.m-strong { background: var(--strong-bg); box-shadow: inset 0 -2px 0 var(--strong); }
+mark.m-soft { background: var(--soft-bg); box-shadow: inset 0 -2px 0 var(--soft); }
+.shared { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--muted) 45%, transparent); text-underline-offset: 3px; }
+.weak { font-size: 13px; color: var(--strong); font-weight: 600; }
+
+.flags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.flags li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+.flags li p { margin: 0; }
+.flags li .why { color: var(--muted); font-size: 14px; }
+.flags .none { grid-template-columns: minmax(0, 1fr); color: var(--muted); }
+
+.decide { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.decide-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.decide-row .btn[aria-pressed="true"] { outline: 2px solid currentColor; outline-offset: 1px; }
+.btn-ok { color: var(--ok); }
+.btn-fix { color: var(--pencil); }
+.btn-open { color: var(--open); }
+.btn-cut { color: var(--cut); }
+kbd { font: 11px/1 var(--font-ui); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; color: var(--muted); background: var(--surface); }
+.editor { display: grid; gap: 10px; padding: 14px; border-radius: 8px; background: var(--pencil-soft); }
+.editor textarea { min-height: 90px; }
+.task-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; }
+.checks label { display: flex; gap: 6px; align-items: center; }
+.picker { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.picker ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; display: grid; gap: 2px; }
+.picker li label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: var(--r); cursor: pointer; font: 15px/1.45 var(--font-copy); }
+.picker li label:hover { background: var(--sunk); }
+.picker small { display: block; font: 12px/1.3 var(--font-ui); color: var(--muted); }
+.nav-row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.decided-note { font-size: 14px; color: var(--muted); }
+
+/* Export */
+.export-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.out { padding: 18px 20px; display: grid; gap: 12px; }
+.out-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.out-head h2 { font-size: 18px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button { border: 1px solid var(--line); background: none; border-radius: 99px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.article { font: 18px/1.65 var(--font-copy); max-width: 68ch; }
+.article p { margin: 0 0 12px; }
+del { color: var(--strong); text-decoration-thickness: 1.5px; background: var(--strong-bg); }
+ins { color: var(--ok); text-decoration: none; background: var(--ok-bg); border-bottom: 1.5px solid var(--ok); }
+.held { background: var(--open-bg); box-shadow: inset 0 -2px 0 var(--open); border-radius: 3px; }
+.fn { font: 600 11px/1 var(--font-ui); color: var(--open); vertical-align: super; margin-left: 2px; }
+.banner { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+.banner.hold { background: var(--open-bg); color: var(--open); }
+.banner.clear { background: var(--ok-bg); color: var(--ok); }
+.banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.tasklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tasklist li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 4px; }
+.tasklist .meta { font-size: 13px; color: var(--muted); }
+.log-wrap { overflow-x: auto; }
+table.log { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+table.log th, table.log td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.log th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+table.log td.c { font-family: var(--font-copy); font-size: 15px; }
+.downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+.stack { display: grid; gap: 20px; }
+.empty { padding: 32px; text-align: center; color: var(--muted); }
+
+/* About + dialogs + toast */
+details.about { margin-top: 28px; }
+details.about summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+details.about .body { display: grid; gap: 8px; max-width: 72ch; padding-top: 10px; font-size: 14px; }
+details.about .body p { margin: 0; }
+.modal { position: fixed; inset: 0; background: rgba(10, 12, 14, .45); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.modal .box { max-width: 440px; width: 100%; padding: 20px; display: grid; gap: 14px; box-shadow: var(--shadow); }
+.modal .box p { margin: 0; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 8px 16px; border-radius: 99px; font-size: 14px; z-index: 60; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+footer { color: var(--muted); font-size: 13px; padding-block: 0 32px; }
+
+@media (max-width: 900px) {
+  .setup-grid, .export-grid { grid-template-columns: minmax(0, 1fr); }
+  .review-grid { grid-template-columns: minmax(0, 1fr); }
+  .galley { position: static; max-height: 260px; }
+  .pair { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .top { position: static; }
+  .top-tools { margin-left: 0; width: 100%; }
+  .brand span { display: none; }
+  .ai-use, .task-grid { grid-template-columns: minmax(0, 1fr); }
+  .claim { padding: 14px; }
+  .copy { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Paper Trail</b><span>Check AI-assisted copy against its sources</span></div>
+    <nav aria-label="Steps">
+      <ol class="steps" id="steps">
+        <li><button type="button" data-step="setup"><span class="n">1</span>Add copy and sources</button></li>
+        <li><button type="button" data-step="review"><span class="n">2</span>Check claims</button></li>
+        <li><button type="button" data-step="export"><span class="n">3</span>Export</button></li>
+      </ol>
+    </nav>
+    <div class="top-tools">
+      <label class="who" for="reviewer">Reviewing as <input id="reviewer" placeholder="Your name" autocomplete="name"></label>
+      <button class="btn btn-quiet btn-sm" id="saveFile" type="button">Save review file</button>
+      <button class="btn btn-quiet btn-sm" id="openFile" type="button">Open review file</button>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main" tabindex="-1"></main>
+
+<footer class="wrap">
+  <details class="about" id="about">
+    <summary>How this prototype works, and what it can't do yet</summary>
+    <div class="body">
+      <p><strong>It splits the draft into sentences</strong> and pairs each one with the source sentences that share its most distinctive words, numbers and names.</p>
+      <p><strong>It flags differences a reader would care about:</strong> absolutes the source doesn't use ("all", "unanimously"), numbers, names and quotes that don't match, and careful words the draft drops ("eligible", "may", "up to", "about", "until", "said").</p>
+      <p><strong>It never decides what's true.</strong> The editor decides, and Paper Trail records the decision, the wording change, the source and who checked it.</p>
+      <p><strong>Everything stays in this browser tab.</strong> There is no account, no server and no AI service. Nothing you paste is uploaded.</p>
+      <p><strong>Limits:</strong> matching is word-based, so a heavy paraphrase can pair with the wrong passage (pick the right one by hand). English only. Paste text; PDF import is planned.</p>
+    </div>
+  </details>
+  <p>Paper Trail is a working title. Prototype v0.1, November 2026, by Zeyad Genena.</p>
+</footer>
+
+<div id="live" class="sr-only" aria-live="polite"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="modal" class="modal" hidden>
+  <div class="box panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle"></h2>
+    <p id="modalBody"></p>
+    <div class="actions">
+      <button class="btn btn-primary" id="modalOk" type="button">Continue</button>
+      <button class="btn" id="modalCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+/* Paper Trail engine: sentence splitting, claim-to-source matching and difference flags.
+   Word-based and deterministic. It never judges truth; it points at differences. */
+const PT = (() => {
+  const STOP = new Set(('a an the and or but nor of to in on at by for with from as is are was were be been being has have had ' +
+    'do does did will shall must should it its this that these those they them their there here he she his her him we our us ' +
+    'you your i me my who whom which what when where why how than then so such into also up out more less fewer least than ' +
+    'after before while during per via just very s each other another its own same too much many own via upon onto off ' +
+    'program' /* generic in most source sets; kept low-weight by IDF anyway */).split(/\s+/));
+  STOP.delete('program');
+
+  const NUMWORDS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+    nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+    hundred: 100, thousand: 1000, dozen: 12 };
+
+  const L = s => s.split('|').map(p => p.split(' '));
+  const ABSOLUTE = L('all|every|everyone|everybody|everything|always|never|none|nobody|no one|nothing|only|entire|entirely|' +
+    'completely|totally|fully|guaranteed|guarantees|guarantee|certainly|definitely|unanimous|unanimously|sole|solely|any|' +
+    'whole|universal|automatically|immediately|first|largest|biggest|highest|lowest|record');
+  const RESTRICT = L('eligible|qualifying|qualified|some|certain|selected|select|most|many|several|majority|few|part|partly|partially|limited');
+  const HEDGE = L('may|might|could|would|possibly|potentially|likely|probably|expected|expects|estimated|estimates|projected|' +
+    'proposed|planned|plans to|aims to|intends to|hopes to|preliminary|tentative|tentatively|considering|appears|suggests');
+  const HEDGE_ANY = new Set(['can', 'may', 'might', 'could', 'would', 'possibly', 'potentially', 'likely', 'probably', 'expected',
+    'expects', 'estimated', 'projected', 'proposed', 'planned', 'plans', 'aims', 'intends', 'hopes', 'preliminary', 'tentative']);
+  const APPROX = L('about|around|approximately|roughly|nearly|almost|up to|as many as|as much as|as few as|at least|at most|' +
+    'more than|less than|fewer than|over|under|an estimated|close to|upwards of|no more than|no less than|a maximum of|a minimum of');
+  const CONDITION = L('until|unless|if|provided|as long as|subject to|only if|depending on|except|excluding|while funds last|while supplies last');
+  const ATTRIB = L('said|says|say|according to|claimed|claims|alleged|alleges|allegedly|reported|reportedly|told|stated|states|' +
+    'argued|argues|believes|announced|wrote|testified|estimated by');
+  const NEG = new Set(['not', 'no', 'never', 'none', 'nobody', 'nothing', 'neither', 'nor', 'without', 'cannot']);
+  const EXCLUDE = new Set([...STOP]);
+  [ABSOLUTE, RESTRICT, HEDGE, APPROX, CONDITION, ATTRIB].forEach(list => list.forEach(p => p.forEach(w => EXCLUDE.add(w))));
+  NEG.forEach(w => EXCLUDE.add(w));
+  EXCLUDE.add('can');
+
+  const ABBR = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'jr', 'sr', 'inc', 'ltd', 'co', 'corp', 'no', 'vs', 'etc', 'gov', 'sen', 'rep',
+    'prof', 'gen', 'lt', 'col', 'sgt', 'ave', 'blvd', 'rd', 'mt', 'ft', 'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep',
+    'sept', 'oct', 'nov', 'dec', 'a.m', 'p.m', 'e.g', 'i.e', 'u.s']);
+
+  /* ---------- text basics ---------- */
+  function splitSentences(text) {
+    const out = [];
+    const lineRe = /[^\n]+/g;
+    let m;
+    while ((m = lineRe.exec(text))) {
+      const line = m[0], base = m.index;
+      let segStart = 0;
+      const endRe = /[.!?]+["”’)\]]*(?=\s+["“‘(]?[A-Z0-9$])/g;
+      let e;
+      while ((e = endRe.exec(line))) {
+        const before = line.slice(0, e.index);
+        const word = (before.match(/([A-Za-z.]+)$/) || [''])[0].toLowerCase();
+        if (e[0][0] === '.' && (ABBR.has(word) || /^[a-z]$/.test(word) || /(^|\.)[a-z]\.[a-z]$/.test(word))) continue;
+        pushSeg(segStart, e.index + e[0].length);
+        segStart = e.index + e[0].length;
+      }
+      pushSeg(segStart, line.length);
+      function pushSeg(s, en) {
+        const raw = line.slice(s, en);
+        const lead = raw.length - raw.trimStart().length;
+        const t = raw.trim();
+        if (t) out.push({ text: t, start: base + s + lead, end: base + s + lead + t.length });
+      }
+    }
+    return out;
+  }
+
+  function stem(w) {
+    if (w.length > 4 && w.endsWith('ies')) w = w.slice(0, -3) + 'y';
+    else if (w.length > 4 && /(ss|x|z|ch|sh)es$/.test(w)) w = w.slice(0, -2);
+    else if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') && !w.endsWith('us') && !w.endsWith('is')) w = w.slice(0, -1);
+    if (w.length > 5 && w.endsWith('ing')) w = w.slice(0, -3);
+    else if (w.length > 4 && w.endsWith('ed')) w = w.slice(0, -2);
+    else if (w.length > 5 && w.endsWith('ly')) w = w.slice(0, -2);
+    if (w.length > 3 && w.endsWith('e')) w = w.slice(0, -1);
+    return w;
+  }
+
+  const TOKEN_RE = /\$?\d+(?:,\d{3})*(?:\.\d+)?%?(?:-\d+)?|[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-z]+)*(?:-[A-Za-z]+)*/g;
+  function tokenize(text) {
+    const toks = [];
+    let m;
+    TOKEN_RE.lastIndex = 0;
+    while ((m = TOKEN_RE.exec(text))) {
+      const raw = m[0];
+      let lower = raw.toLowerCase().replace(/’/g, "'").replace(/'s$/, '');
+      const isDigit = /^\$?\d/.test(raw);
+      const isNum = isDigit || Object.prototype.hasOwnProperty.call(NUMWORDS, lower);
+      const val = isDigit ? raw.replace(/[$,]/g, '') : (isNum ? String(NUMWORDS[lower]) : null);
+      const neg = NEG.has(lower) || /n't$/.test(lower);
+      toks.push({ raw, lower, start: m.index, end: m.index + raw.length, isNum, val, money: raw[0] === '$', neg,
+        cap: /^[A-Z]/.test(raw), first: toks.length === 0 });
+    }
+    toks.forEach((t, i) => {
+      t.i = i;
+      const next = toks[i + 1];
+      t.name = !t.isNum && t.cap && !STOP.has(t.lower) && (!t.first || (next && next.cap && !next.isNum));
+      // A number's unit is the word after it ("two years" -> year), so "2 years" never matches "March 2".
+      t.unit = !t.isNum ? '' : (t.money || (next && /^dollars?$/.test(next.lower))) ? '$'
+        : (next && !next.isNum && !STOP.has(next.lower) ? stem(next.lower) : '');
+      t.term = t.isNum ? 'n:' + t.val + ':' + t.unit : (EXCLUDE.has(t.lower) || t.lower.length < 2 ? null : stem(t.lower));
+    });
+    return toks;
+  }
+
+  function quoteRanges(text) {
+    const out = [];
+    const re = /["“]([^"”]{3,}?)[,.!?]?["”]/g;
+    let m;
+    while ((m = re.exec(text))) out.push({ start: m.index, end: m.index + m[0].length, inner: m[1] });
+    return out;
+  }
+
+  function findPhrases(toks, list) {
+    const hits = [];
+    for (let i = 0; i < toks.length; i++) {
+      for (const p of list) {
+        if (i + p.length > toks.length) continue;
+        let ok = true;
+        for (let k = 0; k < p.length; k++) if (toks[i + k].lower !== p[k]) { ok = false; break; }
+        if (ok) hits.push({ i, j: i + p.length - 1, phrase: p.join(' ') });
+      }
+    }
+    return hits;
+  }
+
+  /* ---------- index over source sentences ---------- */
+  function buildIndex(sources) {
+    const sents = [];
+    sources.forEach((src, sIdx) => {
+      splitSentences(src.text || '').forEach((s, k) => {
+        sents.push({ id: src.id + ':' + k, srcId: src.id, srcIdx: sIdx, title: src.title || ('Source ' + (sIdx + 1)), text: s.text, toks: tokenize(s.text) });
+      });
+    });
+    const df = new Map();
+    sents.forEach(s => new Set(s.toks.map(t => t.term).filter(Boolean)).forEach(term => df.set(term, (df.get(term) || 0) + 1)));
+    const byId = new Map(sents.map(s => [s.id, s]));
+    const allText = norm(sources.map(s => s.text || '').join(' \n '));
+    return { sents, df, N: Math.max(1, sents.length), byId, allText, sources };
+  }
+
+  function weights(toks, idx) {
+    const w = new Map();
+    toks.forEach(t => {
+      if (!t.term) return;
+      let v = Math.log(1 + idx.N / (1 + (idx.df.get(t.term) || 0)));
+      if (t.isNum) v *= 2; else if (t.name) v *= 1.5;
+      w.set(t.term, Math.max(w.get(t.term) || 0, v));
+    });
+    return w;
+  }
+
+  function match(toks, idx) {
+    const w = weights(toks, idx);
+    const total = [...w.values()].reduce((a, b) => a + b, 0) || 1;
+    const uncovered = new Set(w.keys());
+    const chosen = [];
+    while (chosen.length < 3) {
+      let best = null, bestGain = 0;
+      for (const s of idx.sents) {
+        if (chosen.includes(s)) continue;
+        const terms = new Set(s.toks.map(t => t.term));
+        let g = 0;
+        uncovered.forEach(term => { if (terms.has(term)) g += w.get(term); });
+        if (g > bestGain + 1e-9) { best = s; bestGain = g; }
+      }
+      if (!best || bestGain <= 0) break;
+      const addsNumber = best.toks.some(t => t.isNum && uncovered.has(t.term));
+      if (chosen.length && bestGain < 0.15 * total && !addsNumber) break;
+      chosen.push(best);
+      best.toks.forEach(t => uncovered.delete(t.term));
+    }
+    let left = 0; uncovered.forEach(term => { left += w.get(term); });
+    const coverage = (total - left) / total;
+    chosen.sort((a, b) => a.srcIdx - b.srcIdx || idx.sents.indexOf(a) - idx.sents.indexOf(b));
+    return { ids: chosen.map(s => s.id), coverage, weak: !chosen.length || coverage < 0.35 };
+  }
+
+  function coverageOf(toks, idx, ids) {
+    const w = weights(toks, idx);
+    const total = [...w.values()].reduce((a, b) => a + b, 0) || 1;
+    const terms = new Set();
+    ids.forEach(id => { const s = idx.byId.get(id); if (s) s.toks.forEach(t => terms.add(t.term)); });
+    let got = 0; w.forEach((v, term) => { if (terms.has(term)) got += v; });
+    return got / total;
+  }
+
+  function norm(s) { return s.toLowerCase().replace(/[“”"‘’']/g, '').replace(/[^a-z0-9$%]+/g, ' ').trim(); }
+
+  /* ---------- flags ---------- */
+  function analyze(text, idx, evidenceIds) {
+    const toks = tokenize(text);
+    let m = evidenceIds ? { ids: evidenceIds.filter(id => idx.byId.has(id)), coverage: 0, weak: false } : match(toks, idx);
+    if (evidenceIds) { m.coverage = coverageOf(toks, idx, m.ids); m.weak = !m.ids.length || m.coverage < 0.35; }
+    const ev = m.ids.map(id => idx.byId.get(id));
+    const flags = [];
+    const claimMarks = [];                     // [start, end, cls]
+    const evMarks = new Map(ev.map(s => [s.id, []]));
+    const markEv = (s, a, b, cls) => evMarks.get(s.id).push([s.toks[a].start, s.toks[b].end, cls]);
+    const q = s => '“' + s + '”';
+
+    const quotes = quoteRanges(text);
+    const inQuote = t => quotes.some(r => t.start >= r.start && t.end <= r.end);
+    const evQuotes = new Map(ev.map(s => [s.id, quoteRanges(s.text)]));
+    const inEvQuote = (s, t) => evQuotes.get(s.id).some(r => t.start >= r.start && t.end <= r.end);
+
+    const claimTerms = new Set(toks.map(t => t.term).filter(Boolean));
+    const claimLower = new Set(toks.map(t => t.lower));
+    const claimVals = new Set(toks.filter(t => t.isNum).map(t => t.val));
+    const evLower = new Set(), evVals = new Set(), evTerms = new Set();
+    ev.forEach(s => s.toks.forEach(t => { evLower.add(t.lower); evTerms.add(t.term); if (t.isNum) evVals.add(t.val); }));
+    const shared = new Map(ev.map(s => [s.id, s.toks.filter(t => t.term && claimTerms.has(t.term)).map(t => t.i)]));
+    ev.forEach(s => shared.get(s.id).forEach(i => markEv(s, i, i, 'shared')));
+    const near = (s, h, W = 4) => shared.get(s.id).some(k => k >= h.i - W && k <= h.j + W);
+    const elsewhere = pred => idx.sents.find(s => !m.ids.includes(s.id) && s.toks.some(pred));
+
+    // Quotes must match a source word for word.
+    quotes.forEach(r => {
+      if (idx.allText.includes(norm(r.inner))) return;
+      const best = closestQuote(r.inner, idx);
+      claimMarks.push([r.start, r.end, 'm-strong']);
+      flags.push({ sev: 'strong', kind: 'quote', title: 'The quote doesn’t match the source word for word.',
+        why: best ? 'Closest quote in ' + best.title + ': ' + q(best.text) : 'No quote in the sources is close to it.' });
+    });
+
+    // Numbers.
+    const pairedEvVals = new Set();
+    toks.filter(t => t.isNum && !inQuote(t)).forEach(t => {
+      if (evVals.has(t.val)) return;
+      const differs = !m.weak && ev.flatMap(s => s.toks).find(e => e.isNum && e.unit && e.unit === t.unit && !claimVals.has(e.val));
+      claimMarks.push([t.start, t.end, 'm-strong']);
+      if (differs) {
+        pairedEvVals.add(differs.val);
+        const s = ev.find(x => x.toks.includes(differs));
+        markEv(s, differs.i, Math.min(differs.i + 1, s.toks.length - 1), 'm-strong');
+        flags.push({ sev: 'strong', kind: 'number', title: 'The draft says ' + q(phraseAt(toks, t)) + '. The source says ' + q(phraseAt(s.toks, differs)) + '.',
+          why: 'A number changed between the source and the draft.' });
+        return;
+      }
+      const other = elsewhere(e => e.isNum && e.val === t.val);
+      flags.push(other
+        ? { sev: 'soft', kind: 'number', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + ': ' + q(other.text) + ' Add that passage if it supports the claim.' }
+        : { sev: 'strong', kind: 'number', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Find where this number comes from, or cut it.' });
+    });
+
+    // Names.
+    toks.filter(t => t.name && !inQuote(t) && !evTerms.has(t.term)).forEach(t => {
+      const other = elsewhere(e => e.term === t.term);
+      claimMarks.push([t.start, t.end, other ? 'm-soft' : 'm-strong']);
+      flags.push(other
+        ? { sev: 'soft', kind: 'name', title: q(t.raw) + ' isn’t in the matched passage.', why: 'It appears in ' + other.title + '. Add that passage if it supports the claim.' }
+        : { sev: 'strong', kind: 'name', title: q(t.raw) + ' doesn’t appear in any source.', why: 'Check the name against a source before it runs.' });
+    });
+
+    if (m.weak) {
+      flags.unshift({ sev: 'strong', kind: 'weak', title: 'No source passage clearly supports this.',
+        why: ev.length ? 'The closest passage shares only a few words. Pick a passage by hand, add a source, or open a check.' : 'Add a source, pick a passage by hand, or open a check.' });
+      return { evidence: m.ids, coverage: m.coverage, weak: true, flags, claimMarks, evMarks };
+    }
+
+    // Detail the source has that the draft drops (numbers next to shared words).
+    const extras = [];
+    ev.forEach(s => s.toks.forEach(e => {
+      if (e.isNum && !claimVals.has(e.val) && !pairedEvVals.has(e.val) && near(s, { i: e.i, j: e.i })) extras.push({ s, e, close: near(s, { i: e.i, j: e.i }, 2) });
+    }));
+
+    // Absolutes the source doesn't use.
+    findPhrases(toks, ABSOLUTE).forEach(h => {
+      const t = toks[h.i];
+      if (inQuote(t) || h.phrase.split(' ').every(w => evLower.has(w))) return;
+      claimMarks.push([toks[h.i].start, toks[h.j].end, 'm-strong']);
+      const counter = [];
+      ev.forEach(s => findPhrases(s.toks, RESTRICT).forEach(r => {
+        if (!claimLower.has(r.phrase)) { counter.push(r.phrase); markEv(s, r.i, r.j, 'm-soft'); }
+      }));
+      extras.forEach(x => { counter.push(phraseAt(x.s.toks, x.e)); markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'); });
+      const uniq = [...new Set(counter)];
+      flags.push({ sev: 'strong', kind: 'absolute', title: 'The draft says ' + q(h.phrase) + '. The source doesn’t.',
+        why: (uniq.length ? 'The source says ' + uniq.map(q).join(', ') + '. ' : '') + 'Absolute words make a claim broader than its source.' });
+    });
+
+    // Limits on numbers the draft drops ("about 80", "up to $5,000").
+    ev.forEach(s => findPhrases(s.toks, APPROX).forEach(h => {
+      const num = s.toks[h.j + 1];
+      if (!num || !num.isNum || !claimVals.has(num.val)) return;
+      const ct = toks.find(t => t.isNum && t.val === num.val);
+      const before = toks.slice(Math.max(0, ct.i - 3), ct.i).map(t => t.lower).join(' ');
+      if ((' ' + before + ' ').includes(' ' + h.phrase + ' ')) return;
+      markEv(s, h.i, h.j + 1, 'm-soft');
+      flags.push({ sev: 'soft', kind: 'approx', title: 'The source says ' + q(s.toks.slice(h.i, h.j + 2).map(t => t.raw).join(' ')) + '. The draft says ' + q(ct.raw) + '.',
+        why: h.phrase === 'up to' || h.phrase === 'as much as' || h.phrase === 'as many as' ? 'Dropping ' + q(h.phrase) + ' turns a maximum into a promise.' : 'Dropping ' + q(h.phrase) + ' turns an estimate or a limit into an exact figure.' });
+    }));
+
+    // Hedges the draft drops.
+    if (!toks.some(t => HEDGE_ANY.has(t.lower))) {
+      const seen = new Set();
+      ev.forEach(s => findPhrases(s.toks, HEDGE).forEach(h => {
+        if (!near(s, h) || seen.has(h.phrase)) return;
+        seen.add(h.phrase); markEv(s, h.i, h.j, 'm-soft');
+      }));
+      if (seen.size) flags.push({ sev: 'soft', kind: 'hedge', title: 'The source is more careful: ' + [...seen].map(q).join(', ') + '.',
+        why: 'The draft states as certain what the source qualifies.' });
+    }
+
+    // Conditions the draft drops.
+    ev.forEach(s => findPhrases(s.toks, CONDITION).forEach(h => {
+      if (!near(s, h) || h.phrase.split(' ').every(w => claimLower.has(w))) return;
+      let j = h.j;
+      while (j + 1 < s.toks.length && j - h.i < 8 && !/[,;:.]/.test(s.text.slice(s.toks[j].end, s.toks[j + 1].start))) j++;
+      markEv(s, h.i, j, 'm-soft');
+      flags.push({ sev: 'soft', kind: 'condition', title: 'The source adds a condition: ' + q(s.text.slice(s.toks[h.i].start, s.toks[j].end)) + '.',
+        why: 'The draft leaves it out.' });
+    }));
+
+    // Attribution the draft drops.
+    if (!findPhrases(toks, ATTRIB).length) {
+      ev.forEach(s => findPhrases(s.toks, ATTRIB).forEach(h => {
+        if (!near(s, h, 6)) return;
+        markEv(s, h.i, h.j, 'm-soft');
+        flags.push({ sev: 'soft', kind: 'attrib', title: 'The source attributes this: ' + q(h.phrase) + '.',
+          why: 'The draft states it as fact. Keep the attribution or confirm it independently.' });
+      }));
+    }
+
+    // Negation differs.
+    const claimNeg = toks.some(t => t.neg && !inQuote(t));
+    const evNeg = ev.some(s => s.toks.some(t => t.neg && !inEvQuote(s, t) && near(s, { i: t.i, j: t.i })));
+    if (claimNeg !== evNeg) flags.push({ sev: 'soft', kind: 'negation',
+      title: claimNeg ? 'The draft has a “not” or “no” the source doesn’t.' : 'The source has a “not” or “no” here. The draft doesn’t.',
+      why: 'Check that the meaning didn’t flip.' });
+
+    // Leftover detail, when no absolute flag already showed it.
+    const closeExtras = extras.filter(x => x.close);
+    if (closeExtras.length && !flags.some(f => f.kind === 'absolute')) {
+      closeExtras.forEach(x => markEv(x.s, x.e.i, Math.min(x.e.i + 1, x.s.toks.length - 1), 'm-soft'));
+      flags.push({ sev: 'soft', kind: 'detail', title: 'The source includes ' + [...new Set(closeExtras.map(x => q(phraseAt(x.s.toks, x.e))))].join(', ') + '. The draft leaves it out.',
+        why: 'Check the draft hasn’t simplified away something that matters.' });
+    }
+
+    flags.sort((a, b) => (a.sev === b.sev ? 0 : a.sev === 'strong' ? -1 : 1));
+    return { evidence: m.ids, coverage: m.coverage, weak: false, flags, claimMarks, evMarks };
+  }
+
+  function phraseAt(toks, t) {
+    const next = toks[t.i + 1];
+    return next && !next.isNum && t.unit && t.unit !== '$' ? t.raw + ' ' + next.raw : t.raw;
+  }
+
+  function closestQuote(inner, idx) {
+    const target = new Set(norm(inner).split(' '));
+    let best = null, score = 0;
+    idx.sents.forEach(s => {
+      const re = /["“]([^"”]{3,}?)[,.!?]?["”]/g;
+      let m;
+      while ((m = re.exec(s.text))) {
+        const words = norm(m[1]).split(' ');
+        const sc = words.filter(w => target.has(w)).length / Math.max(words.length, target.size);
+        if (sc > score) { score = sc; best = { title: s.title, text: m[1] }; }
+      }
+    });
+    return score > 0.3 ? best : null;
+  }
+
+  /* ---------- word diff for tracked changes ---------- */
+  // Word-level diff. Each changed stretch comes out as one deletion followed by one insertion,
+  // so tracked changes read like an editor's markup instead of alternating single words.
+  function diffWords(a, b) {
+    const A = a.trim().split(/\s+/).filter(Boolean), B = b.trim().split(/\s+/).filter(Boolean);
+    const n = A.length, m = B.length;
+    const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const ops = [];
+    let del = [], ins = [];
+    const flush = () => {
+      if (del.length) ops.push({ t: 'del', s: del.join(' ') });
+      if (ins.length) ops.push({ t: 'ins', s: ins.join(' ') });
+      del = []; ins = [];
+    };
+    let i = 0, j = 0;
+    while (i < n || j < m) {
+      if (i < n && j < m && A[i] === B[j]) { flush(); ops.push({ t: 'eq', s: A[i] }); i++; j++; }
+      else if (j >= m || (i < n && dp[i + 1][j] >= dp[i][j + 1])) del.push(A[i++]);
+      else ins.push(B[j++]);
+    }
+    flush();
+    // Join with single spaces: every op is a run of words.
+    return ops.map((o, k) => ({ t: o.t, s: (k ? ' ' : '') + o.s }));
+  }
+
+  return { splitSentences, tokenize, buildIndex, analyze, diffWords };
+})();
+/* Paper Trail app: state, practice story, helpers and the setup step. */
+const STORE_KEY = 'papertrail.v1';
+const NAME_KEY = 'papertrail.reviewer';
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+const ICON = {
+  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+  pencil: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>',
+  flag: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg>',
+  ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2"/></svg>',
+  minus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h8"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>',
+  hold: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.5 5.5v5M9.5 5.5v5"/></svg>'
+};
+
+const STATUS = {
+  unreviewed: { label: 'Not checked', cls: 'st-unreviewed', icon: '' },
+  supported: { label: 'Supported', cls: 'st-supported', icon: ICON.check },
+  fixed: { label: 'Fixed', cls: 'st-fixed', icon: ICON.pencil },
+  open: { label: 'Needs a check', cls: 'st-open', icon: ICON.ask },
+  cut: { label: 'Cut', cls: 'st-cut', icon: ICON.minus },
+  notclaim: { label: 'Not a claim', cls: 'st-notclaim', icon: ICON.minus }
+};
+
+const PURPOSES = ['summarize source documents', 'draft parts of the text', 'translate source material', 'suggest edits'];
+
+/* ---------- practice story (fictional) ---------- */
+const DEMO = {
+  slug: 'Millbrook small business grants',
+  aiTool: 'a chatbot',
+  aiPurpose: PURPOSES[0],
+  draft: 'Millbrook will give all small businesses $5,000 grants starting April 7. The city has set aside $400,000 for the program, enough to fund 80 grants. Businesses must have been operating for at least two years to qualify. Applications will be reviewed in the order they are received. City council unanimously approved the program on March 2. Council member Dana Ruiz said the program “should help businesses that have not received other relief.” The program is expected to create 200 jobs. Grants can be used for rent, equipment or repairs.',
+  sources: [
+    { title: 'City of Millbrook news release, March 3', text: 'The City of Millbrook will open applications for the Small Business Recovery Grant on April 7. Eligible applicants may receive up to $5,000 to cover rent, equipment or repairs. To be eligible, a business must be located within city limits, have fewer than 20 employees, and have been operating for at least one year. The city has set aside $400,000 for the program, which is expected to fund about 80 grants. Applications will be reviewed in the order they are received until funds run out.' },
+    { title: 'City council minutes, March 2', text: 'The program was approved by city council on March 2 by a 5-2 vote. Council member Dana Ruiz, who voted against it, said the program “should prioritize businesses that have not received other relief.” Council member Omar Bell said the grants “will help the businesses that were hit hardest.”' }
+  ]
+};
+/* A finished review of the practice story, for "See a finished review". */
+const DEMO_DONE = [
+  { status: 'fixed', text: 'Eligible Millbrook businesses can apply for grants of up to $5,000 starting April 7.' },
+  { status: 'fixed', text: 'The city has set aside $400,000 for the program, which it expects will fund about 80 grants.' },
+  { status: 'fixed', text: 'Businesses must have been operating for at least one year to qualify.' },
+  { status: 'fixed', text: 'Applications will be reviewed in the order they are received until funds run out.' },
+  { status: 'fixed', text: 'City council approved the program 5-2 on March 2.' },
+  { status: 'fixed', text: 'Council member Dana Ruiz, who voted against it, said the program “should prioritize businesses that have not received other relief.”' },
+  { status: 'open', task: { what: 'Find the source for the 200-jobs estimate, or cut the sentence.', who: 'Reporter (J. Park)', due: 'Before publishing', hold: true, second: false } },
+  { status: 'supported' }
+];
+
+/* ---------- state ---------- */
+let S = blank();
+let IDX = null;            // engine index over the current sources
+let ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false };
+
+function blank() {
+  return { v: 1, slug: '', aiTool: '', aiPurpose: PURPOSES[0], draft: '', sources: [{ id: uid(), title: '', text: '' }], claims: [], step: 'setup', analyzedAt: null };
+}
+function reviewer() { return ($('#reviewer').value || '').trim(); }
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* storage blocked: the session still works */ }
+}
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+
+function analyzeAll(keepDecisions) {
+  IDX = PT.buildIndex(S.sources);
+  const sents = PT.splitSentences(S.draft);
+  S.claims = sents.map((s, i) => {
+    const prev = keepDecisions && S.claims[i] && S.claims[i].original === s.text ? S.claims[i] : null;
+    const c = prev || { id: uid(), original: s.text, text: s.text, status: 'unreviewed', evidence: null, note: '', task: null, by: '', at: null };
+    c.para = S.draft.slice(0, s.start).split(/\n\s*\n|\n/).length - 1;
+    return c;
+  });
+  S.analyzedAt = new Date().toISOString();
+  S.analyzedDraft = S.draft;
+  S.sourcesSig = JSON.stringify(S.sources.map(s => s.text));
+}
+function result(c) {
+  if (!IDX) IDX = PT.buildIndex(S.sources);
+  return PT.analyze(c.text, IDX, c.evidence);
+}
+
+function loadDemo(done) {
+  S = blank();
+  S.practice = true;
+  S.slug = DEMO.slug; S.aiTool = DEMO.aiTool; S.aiPurpose = DEMO.aiPurpose; S.draft = DEMO.draft;
+  S.sources = DEMO.sources.map(s => ({ id: uid(), title: s.title, text: s.text }));
+  analyzeAll(false);
+  if (done) {
+    const who = reviewer() || 'A. Editor';
+    S.claims.forEach((c, i) => {
+      const d = DEMO_DONE[i]; if (!d) return;
+      c.status = d.status; if (d.text) c.text = d.text; if (d.task) c.task = Object.assign({}, d.task);
+      c.by = who; c.at = new Date().toISOString();
+    });
+  }
+  S.step = done ? 'export' : 'review';
+  ui.claim = 0; ui.mode = null; ui.filter = 'all';
+  save();
+}
+
+/* ---------- small UI helpers ---------- */
+function say(msg) { $('#live').textContent = msg; toast(msg); }
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+function ask(title, body, okLabel) {
+  return new Promise(resolve => {
+    const m = $('#modal');
+    $('#modalTitle').textContent = title; $('#modalBody').textContent = body; $('#modalOk').textContent = okLabel || 'Continue';
+    m.hidden = false; $('#modalOk').focus();
+    const done = v => { m.hidden = true; $('#modalOk').onclick = $('#modalCancel').onclick = null; document.removeEventListener('keydown', onKey); resolve(v); };
+    const onKey = e => { if (e.key === 'Escape') done(false); };
+    $('#modalOk').onclick = () => done(true); $('#modalCancel').onclick = () => done(false);
+    document.addEventListener('keydown', onKey);
+  });
+}
+async function copyText(text, what) {
+  try { await navigator.clipboard.writeText(text); say(what + ' copied.'); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (x) { ok = false; }
+    ta.remove(); say(ok ? what + ' copied.' : 'Copy was blocked. Select the text and copy it by hand.');
+  }
+}
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+}
+function fileSlug() { return (S.slug || 'review').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'review'; }
+
+/* Wrap [start, end, cls] ranges of text in marks; later ranges never split earlier ones. */
+function marked(text, ranges) {
+  const rs = ranges.filter(r => r[1] > r[0]).sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
+  const pri = c => (c === 'shared' ? 0 : 1);
+  const kept = [];
+  rs.forEach(r => {
+    const clash = kept.findIndex(k => r[0] < k[1] && r[1] > k[0]);
+    if (clash < 0) kept.push(r);
+    else if (pri(r[2]) > pri(kept[clash][2])) kept.splice(clash, 1, r);
+  });
+  kept.sort((a, b) => a[0] - b[0]);
+  let out = '', pos = 0;
+  kept.forEach(([s, e, c]) => {
+    if (s < pos) return;
+    out += esc(text.slice(pos, s));
+    out += c === 'shared' ? '<span class="shared">' + esc(text.slice(s, e)) + '</span>' : '<mark class="' + c + '">' + esc(text.slice(s, e)) + '</mark>';
+    pos = e;
+  });
+  return out + esc(text.slice(pos));
+}
+function pill(status) { const s = STATUS[status]; return '<span class="pill ' + s.cls + '">' + s.icon + esc(s.label) + '</span>'; }
+function counts() {
+  const c = { unreviewed: 0, supported: 0, fixed: 0, open: 0, cut: 0, notclaim: 0 };
+  S.claims.forEach(x => { c[x.status]++; });
+  return c;
+}
+
+/* ---------- step 1: setup ---------- */
+function viewSetup() {
+  const ready = S.draft.trim() && S.sources.some(s => s.text.trim());
+  return `
+  <div class="view-head">
+    <div><h2 id="stepTitle" tabindex="-1">Add the AI-assisted copy and its sources</h2>
+    <p class="lede">Paste the draft that an AI tool wrote or summarized, then the documents it was based on. Paper Trail splits the draft into claims and pairs each one with the source passages that should support it.</p></div>
+  </div>
+  <div class="stack">
+    <div class="examples">
+      <p><strong>New here?</strong> Try a short practice story about a city grant program. It has eight claims and the kinds of errors AI summaries make.</p>
+      <button class="btn btn-primary" type="button" data-act="demo">Load the practice story</button>
+      <button class="btn" type="button" data-act="demo-done">See a finished review</button>
+    </div>
+    <div class="setup-grid">
+      <div class="col">
+        <div class="field"><label for="slug">Story name</label><input class="input" id="slug" value="${esc(S.slug)}" placeholder="For example: School board budget brief"></div>
+        <div class="field"><label for="draft">AI-assisted draft</label>
+          <textarea id="draft" rows="12" placeholder="Paste the copy here.">${esc(S.draft)}</textarea></div>
+        <div class="panel ai-use">
+          <div class="field"><label for="aiTool">AI tool used</label><input class="input" id="aiTool" value="${esc(S.aiTool)}" placeholder="For example: ChatGPT"></div>
+          <div class="field"><label for="aiPurpose">It was used to</label>
+            <select class="input" id="aiPurpose">${PURPOSES.map(p => `<option${p === S.aiPurpose ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="label">Sources</div>
+        ${S.sources.map((s, i) => `
+        <div class="panel source-card" data-src="${s.id}">
+          <div class="row">
+            <label class="sr-only" for="st-${s.id}">Source ${i + 1} name</label>
+            <input class="input" id="st-${s.id}" data-field="title" value="${esc(s.title)}" placeholder="Source ${i + 1}: name and date">
+            ${S.sources.length > 1 ? `<button class="btn btn-quiet btn-sm" type="button" data-act="rm-src" data-id="${s.id}" aria-label="Remove source ${i + 1}">Remove</button>` : ''}
+          </div>
+          <label class="sr-only" for="sx-${s.id}">Source ${i + 1} text</label>
+          <textarea id="sx-${s.id}" data-field="text" rows="7" placeholder="Paste the source text: a news release, minutes, a report.">${esc(s.text)}</textarea>
+        </div>`).join('')}
+        <div class="actions">
+          <button class="btn" type="button" data-act="add-src">Add another source</button>
+          <label class="btn btn-quiet" for="srcFile">Add a .txt file</label>
+          <input type="file" id="srcFile" accept=".txt,.md,text/plain" hidden>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="button" data-act="analyze" ${ready ? '' : 'disabled'}>Find claims</button>
+      <span class="privacy">${ICON.lock}<span>Everything stays in this browser tab. Nothing you paste is uploaded or sent to an AI service.</span></span>
+    </div>
+  </div>`;
+}
+
+function bindSetup() {
+  const main = $('#main');
+  const refreshReady = () => {
+    const ready = S.draft.trim() && S.sources.some(s => s.text.trim());
+    const b = $('[data-act="analyze"]', main); if (b) b.disabled = !ready;
+  };
+  main.addEventListener('input', e => {
+    const t = e.target;
+    if (t.id === 'slug') S.slug = t.value;
+    else if (t.id === 'draft') S.draft = t.value;
+    else if (t.id === 'aiTool') S.aiTool = t.value;
+    else if (t.id === 'aiPurpose') S.aiPurpose = t.value;
+    else if (t.dataset.field) {
+      const src = S.sources.find(s => s.id === t.closest('[data-src]').dataset.src);
+      if (src) src[t.dataset.field] = t.value;
+    }
+    refreshReady(); save();
+  });
+  main.addEventListener('change', e => {
+    if (e.target.id === 'aiPurpose') { S.aiPurpose = e.target.value; save(); }
+    if (e.target.id === 'srcFile' && e.target.files[0]) {
+      const f = e.target.files[0];
+      const r = new FileReader();
+      r.onload = () => {
+        const empty = S.sources.find(s => !s.text.trim());
+        const src = empty || { id: uid(), title: '', text: '' };
+        src.title = src.title || f.name.replace(/\.[^.]+$/, ''); src.text = String(r.result);
+        if (!empty) S.sources.push(src);
+        save(); render(); say('Added ' + f.name + '.');
+      };
+      r.readAsText(f);
+    }
+  });
+}
+/* Step 2: check claims one at a time. */
+function flagSummary(r) {
+  const strong = r.flags.filter(f => f.sev === 'strong').length, soft = r.flags.length - strong;
+  if (strong) return '<span class="pill fl-strong">' + ICON.flag + strong + (soft ? '+' + soft : '') + '</span>';
+  if (soft) return '<span class="pill fl-soft">' + soft + ' careful</span>';
+  return '<span class="pill st-unreviewed">No flags</span>';
+}
+
+function viewReview() {
+  if (!S.claims.length) return '<div class="panel empty">No claims yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
+  ui.claim = Math.min(ui.claim, S.claims.length - 1);
+  const c = counts(), total = S.claims.length, done = total - c.unreviewed;
+  const seg = (n, color) => n ? `<i style="width:${(100 * n / total).toFixed(2)}%;background:var(${color})"></i>` : '';
+  const list = S.claims.map((cl, i) => ({ cl, i })).filter(({ cl }) =>
+    ui.filter === 'all' || (ui.filter === 'todo' && cl.status === 'unreviewed') || (ui.filter === 'open' && cl.status === 'open'));
+  return `
+  ${S.practice ? `<div class="examples" style="margin-bottom:16px"><p><strong>Practice story.</strong> Millbrook and its grant program are fictional. Try the decisions below, then open Export to see what the newsroom keeps.</p><button class="btn" type="button" data-act="fresh">Start with your own copy</button></div>` : ''}
+  <div class="panel summary" aria-label="Progress">
+    <strong>${done} of ${total} checked</strong>
+    <div class="meter" role="img" aria-label="${done} of ${total} claims have a decision">${seg(c.supported, '--ok')}${seg(c.fixed, '--pencil')}${seg(c.open, '--open')}${seg(c.cut + c.notclaim, '--cut')}</div>
+    <div class="counts"><span><b>${c.supported}</b> supported</span><span><b>${c.fixed}</b> fixed</span><span><b>${c.open}</b> need a check</span><span><b>${c.cut + c.notclaim}</b> cut or not claims</span></div>
+    <button class="btn btn-sm${done === total ? ' btn-primary' : ''}" type="button" data-step-go="export">Export</button>
+  </div>
+  <div class="review-grid">
+    <nav class="panel galley" aria-label="Claims">
+      <div class="galley-filter" role="group" aria-label="Show">
+        ${[['all', 'All'], ['todo', 'Not checked'], ['open', 'Need a check']].map(([k, l]) => `<button class="btn btn-sm${ui.filter === k ? ' btn-primary' : ' btn-quiet'}" type="button" data-filter="${k}" aria-pressed="${ui.filter === k}">${l}</button>`).join('')}
+      </div>
+      <ol>${list.map(({ cl, i }) => `<li><button type="button" data-claim="${i}" aria-current="${i === ui.claim}">
+        <span class="num">${i + 1}</span><span class="txt">${esc(cl.text || cl.original)}</span>
+        ${cl.status === 'unreviewed' ? flagSummary(result(cl)) : pill(cl.status)}</button></li>`).join('') || '<li class="hint" style="padding:8px">Nothing here.</li>'}</ol>
+    </nav>
+    ${viewClaim(S.claims[ui.claim], ui.claim)}
+  </div>`;
+}
+
+function viewClaim(c, i) {
+  const r = result(c);
+  const total = S.claims.length;
+  const ev = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
+  const decided = c.status !== 'unreviewed';
+  const press = s => `aria-pressed="${c.status === s}"`;
+  return `
+  <article class="panel claim" aria-labelledby="claimTitle">
+    <div class="claim-head">
+      <h2 id="claimTitle" tabindex="-1">Claim ${i + 1} of ${total}</h2>
+      ${pill(c.status)}
+    </div>
+    <div class="pair">
+      <section class="says draft">
+        <h3>Draft says</h3>
+        <p class="copy">${c.status === 'cut' ? '<del>' + esc(c.original) + '</del>' : marked(c.text, r.claimMarks)}</p>
+        ${c.text !== c.original && c.status !== 'cut' ? `<p class="hint">Originally: ${esc(c.original)}</p>` : ''}
+      </section>
+      <section class="says source">
+        <h3>Source says</h3>
+        ${r.weak && ev.length ? '<p class="weak">Weak match. These share only a few words with the claim.</p>' : ''}
+        ${ev.map(s => `<div class="passage"><div class="src-title">${esc(s.title)}</div><p class="copy small">${marked(s.text, r.evMarks.get(s.id) || [])}</p></div>`).join('') || '<p class="hint">No passage selected.</p>'}
+        <div><button class="btn btn-quiet btn-sm" type="button" data-act="picker" aria-expanded="${ui.picker}">${ui.picker ? 'Close passage list' : 'Choose a different passage'}</button></div>
+      </section>
+    </div>
+    ${ui.picker ? viewPicker(c, r) : ''}
+    <section aria-labelledby="flagsTitle" style="display:grid;gap:10px">
+      <h3 id="flagsTitle">What to check</h3>
+      <ul class="flags">${r.flags.length ? r.flags.map(f => `<li>
+        <span class="pill ${f.sev === 'strong' ? 'fl-strong' : 'fl-soft'}">${f.sev === 'strong' ? ICON.flag + 'Check' : 'Careful'}</span>
+        <div><p><strong>${esc(f.title)}</strong></p><p class="why">${esc(f.why)}</p></div></li>`).join('')
+        : '<li class="none"><p>No differences found. Read both and confirm the source supports the claim.</p></li>'}</ul>
+    </section>
+    <section class="decide" aria-label="Decision">
+      <div class="decide-row">
+        <button class="btn btn-ok" type="button" data-act="supported" ${press('supported')}>${ICON.check}Supported <kbd>S</kbd></button>
+        <button class="btn btn-fix" type="button" data-act="fix" ${press('fixed')}>${ICON.pencil}Fix wording <kbd>F</kbd></button>
+        <button class="btn btn-open" type="button" data-act="open" ${press('open')}>${ICON.ask}Needs a check <kbd>C</kbd></button>
+        <button class="btn btn-cut" type="button" data-act="notclaim" ${press('notclaim')}>${ICON.minus}Not a claim <kbd>N</kbd></button>
+      </div>
+      ${ui.mode === 'fix' ? viewFix(c, r, ev) : ''}
+      ${ui.mode === 'open' ? viewTask(c, r) : ''}
+      ${decided && !ui.mode ? `<p class="decided-note">${esc(STATUS[c.status].label)}${c.by ? ' by ' + esc(c.by) : ''}${c.at ? ', ' + new Date(c.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}.${c.task ? ' Check: ' + esc(c.task.what) + (c.task.who ? ' (' + esc(c.task.who) + ')' : '') + '.' : ''} <button class="btn btn-quiet btn-sm" type="button" data-act="clear">Clear decision</button></p>` : ''}
+      <div class="field"><label for="note">Note for the record (optional)</label><input class="input" id="note" value="${esc(c.note)}" placeholder="For example: confirmed by phone with the city clerk"></div>
+    </section>
+    <div class="nav-row">
+      <button class="btn" type="button" data-act="prev" ${i === 0 ? 'disabled' : ''}>Previous</button>
+      <button class="btn" type="button" data-act="next" ${i === total - 1 ? 'disabled' : ''}>Next claim</button>
+    </div>
+  </article>`;
+}
+
+function viewFix(c, r, ev) {
+  return `<div class="editor">
+    <label class="label" for="fixText">Corrected wording</label>
+    <textarea id="fixText" rows="3">${esc(c.text)}</textarea>
+    <p class="hint" id="fixCheck" aria-live="polite">${recheckText(c.text, c)}</p>
+    <div class="actions">
+      <button class="btn btn-primary" type="button" data-act="save-fix">Save fix</button>
+      ${ev.length ? '<button class="btn" type="button" data-act="use-source">Start from the source wording</button>' : ''}
+      <button class="btn btn-quiet" type="button" data-act="cut">Cut this sentence</button>
+      <button class="btn btn-quiet" type="button" data-act="cancel">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function recheckText(text, c) {
+  if (!text.trim()) return 'Empty. Saving will cut the sentence.';
+  const r = PT.analyze(text, IDX, c.evidence || PT.analyze(c.text, IDX, c.evidence).evidence);
+  if (!r.flags.length) return 'No differences left against the source.';
+  return r.flags.length + (r.flags.length === 1 ? ' difference left: ' : ' differences left: ') + r.flags.map(f => f.title).join(' ');
+}
+
+function viewTask(c, r) {
+  const t = c.task || {};
+  const strong = r.flags.find(f => f.sev === 'strong');
+  const what = t.what || (r.weak ? 'Find a source for this claim, or cut it.' : strong ? 'Confirm: ' + strong.title : 'Confirm this claim with a second source.');
+  const second = t.second != null ? t.second : r.flags.some(f => f.kind === 'quote' || f.kind === 'name');
+  return `<div class="editor">
+    <div class="task-grid">
+      <div class="field"><label for="tWhat">What needs checking?</label><input class="input" id="tWhat" value="${esc(what)}"></div>
+      <div class="field"><label for="tWho">Who is checking?</label><input class="input" id="tWho" value="${esc(t.who || '')}" placeholder="Name or role"></div>
+      <div class="field"><label for="tDue">By when?</label><input class="input" id="tDue" value="${esc(t.due || 'Before publishing')}"></div>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="tHold" ${t.hold === false ? '' : 'checked'}> Hold publication until this is resolved</label>
+      <label><input type="checkbox" id="tSecond" ${second ? 'checked' : ''}> Needs a second editor (quotes, names, allegations)</label>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="button" data-act="save-task">Save check</button>
+      <button class="btn btn-quiet" type="button" data-act="cancel">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function viewPicker(c, r) {
+  const chosen = new Set(r.evidence);
+  return `<div class="picker">
+    <label class="label" for="pickSearch">Pick the passages that support this claim</label>
+    <input class="input" id="pickSearch" placeholder="Filter source sentences" autocomplete="off">
+    <ul id="pickList">${IDX.sents.map(s => `<li data-text="${esc(s.text.toLowerCase())}"><label><input type="checkbox" value="${esc(s.id)}" ${chosen.has(s.id) ? 'checked' : ''}><span>${esc(s.text)}<small>${esc(s.title)}</small></span></label></li>`).join('')}</ul>
+    <div class="actions">
+      <button class="btn btn-primary btn-sm" type="button" data-act="pick-apply">Use selected passages</button>
+      <button class="btn btn-quiet btn-sm" type="button" data-act="pick-auto">Go back to the automatic match</button>
+    </div>
+  </div>`;
+}
+
+function nextUnreviewed(from) {
+  for (let k = 1; k <= S.claims.length; k++) {
+    const j = (from + k) % S.claims.length;
+    if (S.claims[j].status === 'unreviewed') return j;
+  }
+  return Math.min(from + 1, S.claims.length - 1);
+}
+
+let nudged = false;
+function decide(status, extra) {
+  const i = ui.claim, c = S.claims[i];
+  Object.assign(c, { status, by: reviewer(), at: new Date().toISOString() }, extra || {});
+  if (status !== 'open') c.task = status === 'open' ? c.task : null;
+  ui.mode = null; ui.picker = false;
+  save();
+  const label = STATUS[status].label.toLowerCase();
+  const allDone = S.claims.every(x => x.status !== 'unreviewed');
+  ui.claim = allDone ? i : nextUnreviewed(i);
+  render('claim');
+  if (!reviewer() && !nudged) { nudged = true; toast('Add your name at the top so the record shows who checked.'); }
+  else say('Claim ' + (i + 1) + ' marked ' + label + '.' + (allDone ? ' Every claim has a decision.' : ''));
+}
+
+function reviewAction(act, el) {
+  const c = S.claims[ui.claim];
+  switch (act) {
+    case 'supported': return decide('supported');
+    case 'notclaim': return decide('notclaim');
+    case 'fix': ui.mode = ui.mode === 'fix' ? null : 'fix'; render('fix'); return;
+    case 'open': ui.mode = ui.mode === 'open' ? null : 'open'; render('open'); return;
+    case 'cancel': ui.mode = null; render('claim'); return;
+    case 'clear': Object.assign(c, { status: 'unreviewed', text: c.original, task: null, by: '', at: null }); save(); render('claim'); say('Decision cleared.'); return;
+    case 'cut': return decide('cut');
+    case 'use-source': {
+      const r = result(c);
+      const ta = $('#fixText'); ta.value = r.evidence.map(id => IDX.byId.get(id).text).join(' ');
+      $('#fixCheck').textContent = recheckText(ta.value, c); ta.focus(); return;
+    }
+    case 'save-fix': {
+      const v = $('#fixText').value.trim();
+      if (!v) return decide('cut');
+      if (v === c.text && c.text === c.original) { toast('The wording hasn’t changed. Mark it supported, or edit it first.'); return; }
+      return decide('fixed', { text: v });
+    }
+    case 'save-task': {
+      const task = { what: $('#tWhat').value.trim() || 'Check this claim.', who: $('#tWho').value.trim(), due: $('#tDue').value.trim(), hold: $('#tHold').checked, second: $('#tSecond').checked };
+      return decide('open', { task });
+    }
+    case 'picker': ui.picker = !ui.picker; render(ui.picker ? 'picker' : 'claim'); return;
+    case 'pick-apply': {
+      const ids = [...document.querySelectorAll('#pickList input:checked')].map(x => x.value);
+      c.evidence = ids; ui.picker = false; save(); render('claim'); say(ids.length ? 'Passages updated.' : 'No passage selected.'); return;
+    }
+    case 'pick-auto': c.evidence = null; ui.picker = false; save(); render('claim'); say('Back to the automatic match.'); return;
+    case 'prev': if (ui.claim > 0) { ui.claim--; ui.mode = null; ui.picker = false; render('claim'); } return;
+    case 'next': if (ui.claim < S.claims.length - 1) { ui.claim++; ui.mode = null; ui.picker = false; render('claim'); } return;
+  }
+}
+/* Step 3: what the newsroom keeps. */
+function openChecks() { return S.claims.map((c, i) => ({ c, i })).filter(x => x.c.status === 'open'); }
+function checkers() { return [...new Set(S.claims.map(c => c.by).filter(Boolean))]; }
+
+function paragraphs(mode, omitOpen) {
+  // mode: 'clean' | 'changes' | 'text'
+  const paras = [];
+  const opens = openChecks().map(x => x.i);
+  S.claims.forEach((c, i) => {
+    const p = c.para || 0;
+    (paras[p] = paras[p] || []);
+    if (mode === 'changes') {
+      if (c.status === 'cut') paras[p].push('<del>' + esc(c.original) + '</del>');
+      else if (c.text !== c.original) paras[p].push(PT.diffWords(c.original, c.text).map(o => {
+        const lead = o.s.startsWith(' ') ? ' ' : '', w = o.s.trimStart();
+        return o.t === 'eq' ? esc(o.s) : lead + '<' + o.t + '>' + esc(w) + '</' + o.t + '>';
+      }).join(''));
+      else paras[p].push(esc(c.text));
+      return;
+    }
+    if (c.status === 'cut') return;
+    const n = opens.indexOf(i) + 1;
+    if (c.status === 'open' && omitOpen) return;
+    if (mode === 'text') paras[p].push(c.text + (c.status === 'open' ? ' [OPEN CHECK ' + n + ']' : ''));
+    else paras[p].push(c.status === 'open' ? '<span class="held">' + esc(c.text) + '</span><span class="fn">' + n + '</span>' : esc(c.text));
+  });
+  return paras.filter(x => x && x.length);
+}
+
+function disclosureDraft() {
+  const factual = S.claims.filter(c => c.status !== 'notclaim').length;
+  const checked = S.claims.filter(c => ['supported', 'fixed', 'cut'].includes(c.status)).length;
+  const corrected = S.claims.filter(c => c.status === 'fixed' || c.status === 'cut').length;
+  const srcs = S.sources.filter(s => s.text.trim());
+  const tool = S.aiTool.trim() || 'An AI tool';
+  const who = checkers().length > 1 ? 'Our editors' : 'An editor';
+  return `${tool.charAt(0).toUpperCase() + tool.slice(1)} was used to ${S.aiPurpose} for this story. ${who} checked ${checked === factual ? 'each of its ' + factual : checked + ' of its ' + factual} factual statements against ${srcs.length === 1 ? 'the source document' : 'the ' + srcs.length + ' source documents'} and corrected ${corrected} before publication.`;
+}
+
+function viewExport() {
+  if (!S.claims.length) return '<div class="panel empty">Nothing to export yet. <button class="btn" type="button" data-step-go="setup">Add copy and sources</button></div>';
+  const c = counts(), opens = openChecks(), holds = opens.filter(x => x.c.task && x.c.task.hold);
+  const banner = c.unreviewed
+    ? `<div class="banner hold">${ICON.hold}<span>${c.unreviewed} ${c.unreviewed === 1 ? 'claim hasn’t' : 'claims haven’t'} been checked yet. <button class="btn btn-sm" type="button" data-step-go="review">Back to checking</button></span></div>`
+    : holds.length ? `<div class="banner hold">${ICON.hold}<span>${holds.length} open ${holds.length === 1 ? 'check is' : 'checks are'} holding publication.</span></div>`
+    : `<div class="banner clear">${ICON.check}<span>Every claim has a decision. Nothing is holding publication.</span></div>`;
+  const tab = ui.exportTab;
+  const body = paragraphs(tab === 'changes' ? 'changes' : 'clean', ui.omitOpen).map(p => '<p>' + p.join(' ') + '</p>').join('');
+  const disclosure = S.disclosureEdited ? S.disclosure : disclosureDraft();
+  return `
+  <div class="view-head">
+    <div><h2 id="stepTitle" tabindex="-1">${esc(S.slug || 'Reviewed copy')}</h2>
+    <p class="lede">The corrected copy, the checks still open, a note for readers and the claim-by-claim record. ${checkers().length ? 'Checked by ' + esc(checkers().join(', ')) + '.' : ''}</p></div>
+  </div>
+  <div class="stack">
+    ${banner}
+    <div class="export-grid">
+      <section class="panel out" aria-labelledby="copyTitle">
+        <div class="out-head"><h2 id="copyTitle">Reviewed copy</h2>
+          <div class="tabs" role="tablist" aria-label="Copy view">
+            <button type="button" role="tab" aria-selected="${tab === 'clean'}" data-tab="clean">Clean copy</button>
+            <button type="button" role="tab" aria-selected="${tab === 'changes'}" data-tab="changes">Tracked changes</button>
+          </div></div>
+        <div class="article" role="tabpanel">${body || '<p class="hint">Every sentence was cut.</p>'}</div>
+        <div class="actions">
+          <button class="btn" type="button" data-act="copy-clean">Copy clean copy</button>
+          ${opens.length ? `<label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="omitOpen" ${ui.omitOpen ? 'checked' : ''}> Leave out sentences with open checks</label>` : ''}
+        </div>
+      </section>
+      <div class="stack">
+        <section class="panel out" aria-labelledby="openTitle">
+          <div class="out-head"><h2 id="openTitle">Open checks (${opens.length})</h2>
+            ${opens.length ? '<button class="btn btn-sm" type="button" data-act="copy-checks">Copy as a checklist</button>' : ''}</div>
+          ${opens.length ? `<ul class="tasklist">${opens.map((x, k) => `<li>
+            <strong>${k + 1}. ${esc(x.c.task ? x.c.task.what : 'Check this claim.')}</strong>
+            <span class="meta">Claim ${x.i + 1}: “${esc(x.c.text)}”</span>
+            <span class="meta">${esc([x.c.task && x.c.task.who, x.c.task && x.c.task.due].filter(Boolean).join(' · ') || 'No owner yet')}${x.c.task && x.c.task.hold ? ' · Holds publication' : ''}${x.c.task && x.c.task.second ? ' · Second editor' : ''}</span></li>`).join('')}</ul>`
+          : '<p class="hint">None. Every claim is supported, fixed, cut or marked as not a claim.</p>'}
+        </section>
+        <section class="panel out" aria-labelledby="discTitle">
+          <div class="out-head"><h2 id="discTitle">Note for readers</h2><button class="btn btn-sm" type="button" data-act="copy-disc">Copy</button></div>
+          <label class="sr-only" for="disclosure">AI-use note for readers</label>
+          <textarea id="disclosure" rows="5">${esc(disclosure)}</textarea>
+          <p class="hint">A draft built from this review. Readers want to know what the AI did and how people checked it. Edit before publishing.${S.disclosureEdited ? ' <button class="btn btn-quiet btn-sm" type="button" data-act="disc-reset">Rebuild from the review</button>' : ''}</p>
+        </section>
+      </div>
+    </div>
+    <section class="panel out" aria-labelledby="logTitle">
+      <div class="out-head"><h2 id="logTitle">Review record</h2>
+        <div class="downloads">
+          <button class="btn btn-sm" type="button" data-act="copy-md">Copy record as text</button>
+          ${FRAMED ? '<button class="btn btn-sm" type="button" data-act="copy-csv">Copy as CSV</button>'
+            : '<button class="btn btn-sm" type="button" data-act="dl-md">Download .md</button><button class="btn btn-sm" type="button" data-act="dl-csv">Download .csv</button><button class="btn btn-sm" type="button" data-act="dl-json">Download review file</button>'}
+        </div></div>
+      <div class="log-wrap"><table class="log">
+        <thead><tr><th scope="col">#</th><th scope="col">Decision</th><th scope="col">Draft</th><th scope="col">Final</th><th scope="col">Source</th><th scope="col">Checked by</th></tr></thead>
+        <tbody>${S.claims.map((cl, i) => {
+          const r = result(cl);
+          const src = r.evidence.map(id => IDX.byId.get(id)).filter(Boolean);
+          return `<tr><td>${i + 1}</td><td>${pill(cl.status)}${cl.task ? '<div class="hint">' + esc(cl.task.what) + '</div>' : ''}${cl.note ? '<div class="hint">Note: ' + esc(cl.note) + '</div>' : ''}</td>
+            <td class="c">${esc(cl.original)}</td><td class="c">${cl.status === 'cut' ? '<span class="hint">Cut</span>' : cl.text === cl.original ? '<span class="hint">Unchanged</span>' : esc(cl.text)}</td>
+            <td>${src.map(s => '<div><span class="hint">' + esc(s.title) + ':</span> ' + esc(s.text) + '</div>').join('') || '<span class="hint">None</span>'}</td>
+            <td>${esc(cl.by || '')}${cl.at ? '<div class="hint">' + new Date(cl.at).toLocaleDateString([], { dateStyle: 'medium' }) + '</div>' : ''}</td></tr>`;
+        }).join('')}</tbody></table></div>
+    </section>
+  </div>`;
+}
+
+/* ---------- report formats ---------- */
+function reportMarkdown() {
+  const opens = openChecks();
+  const L = [];
+  L.push('# Review record: ' + (S.slug || 'Untitled story'), '');
+  L.push('Checked by ' + (checkers().join(', ') || 'no name given') + ' on ' + new Date().toLocaleDateString([], { dateStyle: 'long' }) + ' with Paper Trail.');
+  L.push('AI use: ' + (S.aiTool || 'an AI tool') + ' was used to ' + S.aiPurpose + '.', '');
+  L.push('Sources:', ...S.sources.filter(s => s.text.trim()).map((s, i) => (i + 1) + '. ' + (s.title || 'Source ' + (i + 1))), '');
+  L.push('## Reviewed copy', '', ...paragraphs('text', false).map(p => p.join(' ') + '\n'));
+  L.push('## Open checks', '');
+  if (!opens.length) L.push('None.');
+  opens.forEach((x, k) => L.push('- [ ] ' + (k + 1) + '. ' + (x.c.task ? x.c.task.what : 'Check this claim.') + (x.c.task && x.c.task.who ? ' Owner: ' + x.c.task.who + '.' : '') + (x.c.task && x.c.task.due ? ' Due: ' + x.c.task.due + '.' : '') + (x.c.task && x.c.task.hold ? ' Holds publication.' : '') + ' (Claim ' + (x.i + 1) + ')'));
+  L.push('', '## Claim by claim', '');
+  S.claims.forEach((c, i) => {
+    const r = result(c);
+    L.push((i + 1) + '. ' + STATUS[c.status].label + (c.by ? ' by ' + c.by : ''));
+    L.push('   - Draft: ' + c.original);
+    if (c.status === 'cut') L.push('   - Final: cut');
+    else if (c.text !== c.original) L.push('   - Final: ' + c.text);
+    r.evidence.forEach(id => { const s = IDX.byId.get(id); L.push('   - Source (' + s.title + '): ' + s.text); });
+    if (c.status === 'unreviewed' && r.flags.length) L.push('   - Flags: ' + r.flags.map(f => f.title).join(' '));
+    if (c.note) L.push('   - Note: ' + c.note);
+  });
+  L.push('', '## Note for readers (draft)', '', S.disclosureEdited ? S.disclosure : disclosureDraft(), '');
+  return L.join('\n');
+}
+function reportCSV() {
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const rows = [['claim', 'decision', 'draft', 'final', 'sources', 'check', 'owner', 'due', 'holds_publication', 'checked_by', 'checked_at', 'note']];
+  S.claims.forEach((c, i) => {
+    const r = result(c);
+    rows.push([i + 1, STATUS[c.status].label, c.original, c.status === 'cut' ? '' : c.text,
+      r.evidence.map(id => { const s = IDX.byId.get(id); return s.title + ': ' + s.text; }).join(' | '),
+      c.task ? c.task.what : '', c.task ? c.task.who : '', c.task ? c.task.due : '', c.task ? (c.task.hold ? 'yes' : 'no') : '', c.by, c.at || '', c.note]);
+  });
+  return rows.map(r => r.map(q).join(',')).join('\n');
+}
+function checklistText() {
+  return openChecks().map((x, k) => '- [ ] ' + (x.c.task ? x.c.task.what : 'Check this claim.') + (x.c.task && x.c.task.who ? ' (' + x.c.task.who + ')' : '') + ' Claim ' + (x.i + 1) + ': "' + x.c.text + '"').join('\n');
+}
+
+function exportAction(act) {
+  switch (act) {
+    case 'copy-clean': return copyText(paragraphs('text', ui.omitOpen).map(p => p.join(' ')).join('\n\n'), 'Clean copy');
+    case 'copy-checks': return copyText(checklistText(), 'Checklist');
+    case 'copy-disc': return copyText($('#disclosure').value, 'Note for readers');
+    case 'disc-reset': S.disclosureEdited = false; S.disclosure = ''; save(); render(); return;
+    case 'copy-md': return copyText(reportMarkdown(), 'Review record');
+    case 'copy-csv': return copyText(reportCSV(), 'CSV');
+    case 'dl-md': return download(fileSlug() + '-review.md', reportMarkdown(), 'text/markdown');
+    case 'dl-csv': return download(fileSlug() + '-review.csv', reportCSV(), 'text/csv');
+    case 'dl-json': return download(fileSlug() + '.papertrail.json', JSON.stringify(S, null, 2), 'application/json');
+  }
+}
+/* Rendering, events and start-up. */
+function render(focus) {
+  document.querySelectorAll('#steps button').forEach(b => {
+    const st = b.dataset.step;
+    b.setAttribute('aria-current', st === S.step ? 'step' : 'false');
+    b.disabled = st !== 'setup' && !S.claims.length;
+  });
+  const main = $('#main');
+  main.innerHTML = S.step === 'setup' ? viewSetup() : S.step === 'review' ? viewReview() : viewExport();
+  const focusEl = {
+    step: () => $('#stepTitle') || $('#claimTitle'),
+    claim: () => $('#claimTitle'),
+    fix: () => $('#fixText'),
+    open: () => $('#tWhat'),
+    picker: () => $('#pickSearch')
+  }[focus];
+  const el = focusEl && focusEl();
+  if (el) {
+    el.focus({ preventScroll: true });
+    const r = el.getBoundingClientRect();
+    if (r.top < 70 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'start' });
+  }
+  if (focus === 'step') window.scrollTo(0, 0);
+}
+
+function sourcesSig() { return JSON.stringify(S.sources.map(s => s.text)); }
+function stale() { return S.draft !== S.analyzedDraft || sourcesSig() !== S.sourcesSig; }
+
+async function runAnalyze() {
+  if (S.claims.some(c => c.status !== 'unreviewed')) {
+    const ok = await ask('Find claims again?', 'Decisions stay on sentences you haven’t changed. Sentences you edited in the draft start over.', 'Find claims');
+    if (!ok) return;
+  }
+  const srcChanged = sourcesSig() !== S.sourcesSig;
+  analyzeAll(true);
+  if (srcChanged) S.claims.forEach(c => { c.evidence = null; });
+  S.practice = S.draft === DEMO.draft;
+  S.step = 'review';
+  ui.claim = Math.max(0, S.claims.findIndex(c => c.status === 'unreviewed'));
+  ui.mode = null; ui.picker = false; ui.filter = 'all';
+  save(); render('step');
+  say(S.claims.length + (S.claims.length === 1 ? ' claim' : ' claims') + ' found.');
+}
+
+async function go(step) {
+  if (step === S.step) return;
+  if (step !== 'setup' && S.step === 'setup' && S.claims.length && stale()) return runAnalyze();
+  S.step = step; ui.mode = null; ui.picker = false;
+  save(); render('step');
+}
+
+async function confirmReplace() {
+  const busy = S.claims.some(c => c.status !== 'unreviewed') || (S.draft.trim() && S.draft !== DEMO.draft);
+  return !busy || ask('Replace your current review?', 'Loading the practice story replaces what is on screen. Save a review file first if you want to keep it.', 'Replace');
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+  const stepBtn = t.closest('#steps [data-step]');
+  if (stepBtn) { if (!stepBtn.disabled) go(stepBtn.dataset.step); return; }
+  const goBtn = t.closest('[data-step-go]');
+  if (goBtn) { go(goBtn.dataset.stepGo); return; }
+  const claimBtn = t.closest('[data-claim]');
+  if (claimBtn) { ui.claim = +claimBtn.dataset.claim; ui.mode = null; ui.picker = false; render('claim'); return; }
+  const filterBtn = t.closest('[data-filter]');
+  if (filterBtn) { ui.filter = filterBtn.dataset.filter; render(); return; }
+  const tabBtn = t.closest('[data-tab]');
+  if (tabBtn) { ui.exportTab = tabBtn.dataset.tab; render(); return; }
+  const a = t.closest('[data-act]');
+  if (!a || !$('#main').contains(a)) return;
+  const act = a.dataset.act;
+  switch (act) {
+    case 'demo': case 'demo-done':
+      if (await confirmReplace()) { loadDemo(act === 'demo-done'); render('step'); say(act === 'demo' ? 'Practice story loaded. 8 claims to check.' : 'Finished practice review loaded.'); }
+      return;
+    case 'fresh':
+      if (!S.claims.some(c => c.status !== 'unreviewed') || await ask('Start with your own copy?', 'This clears the practice story and its decisions.', 'Start')) {
+        S = blank(); IDX = null; ui = { claim: 0, mode: null, filter: 'all', exportTab: 'clean', picker: false }; save(); render('step');
+      }
+      return;
+    case 'add-src':
+      S.sources.push({ id: uid(), title: '', text: '' }); save(); render();
+      $('#st-' + S.sources[S.sources.length - 1].id).focus(); return;
+    case 'rm-src': {
+      const src = S.sources.find(s => s.id === a.dataset.id);
+      if (src && (!src.text.trim() || await ask('Remove this source?', '“' + (src.title || 'Untitled source') + '” and its text will be removed from this review.', 'Remove'))) {
+        S.sources = S.sources.filter(s => s !== src); save(); render();
+      }
+      return;
+    }
+    case 'analyze': return runAnalyze();
+  }
+  if (S.step === 'review') return reviewAction(act, a);
+  if (S.step === 'export') return exportAction(act);
+});
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'reviewer') { try { localStorage.setItem(NAME_KEY, t.value); } catch (x) { /* name just isn't remembered */ } return; }
+  if (t.id === 'note' && S.claims[ui.claim]) { S.claims[ui.claim].note = t.value; save(); return; }
+  if (t.id === 'fixText') { $('#fixCheck').textContent = recheckText(t.value, S.claims[ui.claim]); return; }
+  if (t.id === 'pickSearch') {
+    const q = t.value.trim().toLowerCase();
+    document.querySelectorAll('#pickList li').forEach(li => { li.hidden = !!q && !li.dataset.text.includes(q); });
+    return;
+  }
+  if (t.id === 'disclosure') { S.disclosure = t.value; S.disclosureEdited = true; save(); }
+});
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'omitOpen') { ui.omitOpen = e.target.checked; render(); }
+  if (e.target.id === 'fileInput' && e.target.files[0]) {
+    const f = e.target.files[0], r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(String(r.result));
+        if (data.v !== 1 || !Array.isArray(data.claims) || !Array.isArray(data.sources)) throw new Error('shape');
+        S = data; IDX = null; ui.claim = 0; ui.mode = null; ui.picker = false;
+        save(); render('step'); say('Opened ' + f.name + '.');
+      } catch (x) { say('That file isn’t a Paper Trail review file.'); }
+      e.target.value = '';
+    };
+    r.readAsText(f);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (S.step !== 'review' || e.metaKey || e.ctrlKey || e.altKey || !$('#modal').hidden) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+  const act = { s: 'supported', f: 'fix', c: 'open', n: 'notclaim', j: 'next', k: 'prev' }[e.key.toLowerCase()];
+  if (act) { e.preventDefault(); reviewAction(act); }
+});
+
+$('#saveFile').addEventListener('click', () => {
+  const json = JSON.stringify(S, null, 2);
+  if (FRAMED) copyText(json, 'Review file'); else download(fileSlug() + '.papertrail.json', json, 'application/json');
+});
+$('#openFile').addEventListener('click', () => $('#fileInput').click());
+
+(function init() {
+  try { $('#reviewer').value = localStorage.getItem(NAME_KEY) || ''; } catch (e) { /* no stored name */ }
+  if (FRAMED) $('#saveFile').textContent = 'Copy review file';
+  bindSetup();
+  const h = (location.hash || '').slice(1);
+  const saved = load();
+  if (h === 'practice') loadDemo(false);
+  else if (h === 'finished') loadDemo(true);
+  else if (h === 'practice-setup') { loadDemo(false); S.step = 'setup'; }
+  else if (saved && saved.v === 1 && Array.isArray(saved.claims) && Array.isArray(saved.sources)) S = saved;
+  else loadDemo(false);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Paper Trail</b><span>Check AI-assisted copy against its sources</span></div>
+    <nav aria-label="Steps">
+      <ol class="steps" id="steps">
+        <li><button type="button" data-step="setup"><span class="n">1</span>Add copy and sources</button></li>
+        <li><button type="button" data-step="review"><span class="n">2</span>Check claims</button></li>
+        <li><button type="button" data-step="export"><span class="n">3</span>Export</button></li>
+      </ol>
+    </nav>
+    <div class="top-tools">
+      <label class="who" for="reviewer">Reviewing as <input id="reviewer" placeholder="Your name" autocomplete="name"></label>
+      <button class="btn btn-quiet btn-sm" id="saveFile" type="button">Save review file</button>
+      <button class="btn btn-quiet btn-sm" id="openFile" type="button">Open review file</button>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main" tabindex="-1"></main>
+
+<footer class="wrap">
+  <details class="about" id="about">
+    <summary>How this prototype works, and what it can't do yet</summary>
+    <div class="body">
+      <p><strong>It splits the draft into sentences</strong> and pairs each one with the source sentences that share its most distinctive words, numbers and names.</p>
+      <p><strong>It flags differences a reader would care about:</strong> absolutes the source doesn't use ("all", "unanimously"), numbers, names and quotes that don't match, and careful words the draft drops ("eligible", "may", "up to", "about", "until", "said").</p>
+      <p><strong>It never decides what's true.</strong> The editor decides, and Paper Trail records the decision, the wording change, the source and who checked it.</p>
+      <p><strong>Everything stays in this browser tab.</strong> There is no account, no server and no AI service. Nothing you paste is uploaded.</p>
+      <p><strong>Limits:</strong> matching is word-based, so a heavy paraphrase can pair with the wrong passage (pick the right one by hand). English only. Paste text; PDF import is planned.</p>
+    </div>
+  </details>
+  <p>Paper Trail is a working title. Prototype v0.1, November 2026, by Zeyad Genena.</p>
+</footer>
+
+<div id="live" class="sr-only" aria-live="polite"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="modal" class="modal" hidden>
+  <div class="box panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle"></h2>
+    <p id="modalBody"></p>
+    <div class="actions">
+      <button class="btn btn-primary" id="modalOk" type="button">Continue</button>
+      <button class="btn" id="modalCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
